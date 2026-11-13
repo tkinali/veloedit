@@ -1,0 +1,19 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # The headless UI tests render text: they need at least one font.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-dejavu-core fonts-noto-core
+      # The runners have no GPU: render the UI snapshots with the software renderer (tested locally the same way).
+      - run: cargo test --release --locked
+        env:
+          ICED_TEST_BACKEND: tiny-skia

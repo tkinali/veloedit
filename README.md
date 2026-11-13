@@ -1,0 +1,122 @@
+# VeloEdit
+
+[![CI](https://github.com/tkinali/veloedit/actions/workflows/ci.yml/badge.svg)](https://github.com/tkinali/veloedit/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/tkinali/veloedit)](https://github.com/tkinali/veloedit/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+A fast, light, GPU-accelerated text editor for Linux, in the spirit of Sublime Text.
+Written in Rust with [iced](https://iced.rs). Opens in well under 100 ms, keeps your
+unsaved work across restarts, and never blocks the UI on disk, git or highlighting.
+
+**[Website](https://tkinali.github.io/veloedit/)** · **[Download](https://github.com/tkinali/veloedit/releases/latest)** · [Changelog](CHANGELOG.md)
+
+![VeloEdit](docs/screenshots/hero.png)
+
+## Features
+
+- **Tabs that fit the file**: text editor, hex editor (binary files, in-place byte patching),
+  image preview. Huge files open instantly (lazy loading); files over the text limit open as hex.
+- **Editing**: multi-cursor (`Ctrl+Click`, `Ctrl+D`, `Ctrl+Alt+↑/↓`), find/replace with regex,
+  soft wrap, bracket matching, undo/redo that never loses a step, minimap, line numbers,
+  git gutter (added / modified / removed lines).
+- **Code folding for every language** (indentation based, like Sublime): gutter arrows,
+  `Ctrl+Shift+[` / `]`, *Fold All*, *Fold Level N* in the command palette.
+- **Syntax highlighting** for ~50 languages: 25 tree-sitter grammars (PHP with its HTML/CSS/JS,
+  JavaScript/TypeScript, Python, Rust, Go, Java, Ruby, Lua, Markdown, YAML, TOML, …) plus a
+  light lexer for the rest (Kotlin, Swift, C++, C#, SQL, Dart, Twig/Jinja, …).
+- **Project tools**: multi-root folder sidebar (resizable, file-type badges, right-click menu with
+  new/rename/trash/copy path), `Ctrl+P` fuzzy file open, `Ctrl+Shift+P` command palette,
+  `Ctrl+Shift+F` find in files with a `*.php, !vendor` filter and folder scope.
+- **Markdown preview** next to the source, with real wrapping tables.
+- **Split view**: right-click a tab → *Split Right* / *Split Down* shows the same file twice, each pane with its own name bar, scroll position and caret, edits and undo shared. Tabs can be dragged to reorder them.
+- **Hot exit**: tabs, folders and *unsaved drafts* come back exactly as you left them.
+  Unsaved tabs are named after their first line, so scratch notes are easy to tell apart.
+- **Preview tabs**: a single click on a file in the sidebar opens it in an italic preview tab that the next click replaces; double-click it (or start typing) to keep it.
+- **One window**: opening a file from the file manager hands it to the running VeloEdit.
+- **Trim trailing whitespace on save** (off by default; *Preferences → Settings → Trim on save*): saving removes the spaces and tabs at line ends (Markdown's two-space line breaks stay). It is one undo step, so `Ctrl+Z` brings them back.
+- **Safe on network mounts** (SFTP/sshfs/NFS, VPN): a frozen mount never freezes the window, a reload from disk is an undo step and never empties a buffer that has text, and a window stuck on a dead mount does not block the next launch.
+- Menu bar, light and dark themes, settings panel, drag and drop, external-change detection. The window title shows the file's full path.
+
+| | |
+|---|---|
+| ![Split view](docs/screenshots/split.png) | ![Markdown preview](docs/screenshots/markdown.png) |
+| ![Find in Files](docs/screenshots/find-in-files.png) | ![Code folding](docs/screenshots/folding.png) |
+
+## Install
+
+### Prebuilt (Linux x86_64 / aarch64)
+
+Download `veloedit-<version>-<arch>-linux.tar.gz` from the [Releases page](https://github.com/tkinali/veloedit/releases/latest), then:
+
+```bash
+tar xzf veloedit-*-linux.tar.gz
+cd veloedit-*-linux
+./install.sh                 # into ~/.local (no root); `PREFIX=/usr/local sudo -E ./install.sh` for everyone
+```
+
+This installs the program, the icon and a launcher entry ("Open with VeloEdit" works in the file
+manager). `./install.sh --uninstall` removes it again.
+
+You need a normal Linux desktop session: X11 or Wayland, a font, and either a Vulkan/OpenGL driver
+(Mesa is fine) or nothing at all - without a usable GPU VeloEdit falls back to its software renderer
+(`ICED_BACKEND=tiny-skia veloedit` forces it). File dialogs use `xdg-desktop-portal` (present on every
+mainstream desktop). The binary needs glibc 2.35 or newer (Ubuntu 22.04+, Fedora 36+, Debian 12+).
+
+### From source
+
+Rust **1.92 or newer** (use [rustup](https://rustup.rs) if your distribution's is older) and a C compiler
+(tree-sitter grammars are C):
+
+```bash
+# Debian/Ubuntu: sudo apt install build-essential        Fedora: sudo dnf install gcc
+cargo install --path .              # -> ~/.cargo/bin/veloedit
+# or:
+cargo build --release && packaging/install.sh      # -> ~/.local/bin + launcher entry + icon
+```
+
+## Use
+
+```bash
+veloedit                      # restores your last session
+veloedit file.php src/        # files open as tabs, folders join the sidebar (in the running window if any)
+veloedit --new-window x.txt   # force a separate window
+veloedit --help
+```
+
+| Keys | |
+|---|---|
+| `Ctrl+O` / `Ctrl+Shift+O` | open file / add folder |
+| `Ctrl+P` / `Ctrl+Shift+P` | go to file / command palette |
+| `Ctrl+F` `Ctrl+H` `F3` | find / replace / next |
+| `Ctrl+Shift+F` | find in files |
+| `Ctrl+G` | go to line (`:42`; in hex: `:0x1F40`) |
+| `Ctrl+B` | toggle sidebar |
+| `Ctrl+S` `Ctrl+W` `Ctrl+N` `Ctrl+Q` | save / close tab / new / quit |
+| `Ctrl+Tab` `Ctrl+Shift+Tab` | next / previous tab |
+| `Ctrl+Shift+[` `Ctrl+Shift+]` | fold / unfold (the bracket *keys*, e.g. ğ/ü on a Turkish keyboard) |
+| `Ctrl+=` `Ctrl+-` `Ctrl+0` (numpad `+` `-` `0` too), `Ctrl+wheel` | zoom in / out / reset |
+| `Ctrl+,` | settings |
+
+Settings live in `~/.config/veloedit/settings.json` (also editable from the settings panel), the
+session in `~/.local/state/veloedit/`. Both are plain JSON. Keys: `theme`, `font_size`, `tab_size`,
+`word_wrap`, `minimap`, `menu_bar`, `markdown_preview`, `trim_trailing_whitespace`.
+
+Markdown keeps its hard line breaks: in `.md` files, two or more spaces at the end of a line that is
+followed by more text are left alone (everywhere else, and at the end of a paragraph, they are cut).
+
+## Status
+
+Version 0.1. Developed and tested on Fedora 44 (X11, Mesa/RADV). Wayland and other distributions
+should work but have had less testing - reports are welcome. Known limits are listed in
+[ARCHITECTURE.md](ARCHITECTURE.md) (§9); the architecture notes are in Turkish.
+
+## Contributing
+
+`cargo test --release` runs the whole suite headless (UI snapshots land in `target/ui-snapshots/`).
+`scripts/package.sh` builds the release tarball. Grammars and the lexer table are in `src/syntax/`.
+How a release is made: [RELEASING.md](RELEASING.md) (in Turkish).
+
+## License
+
+MIT - see [LICENSE](LICENSE). Third-party notices: [THIRD-PARTY-LICENSES.txt](THIRD-PARTY-LICENSES.txt)
+(regenerate with `python3 scripts/third_party_licenses.py`).

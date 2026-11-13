@@ -1,0 +1,38 @@
+# Changelog
+
+Every release has a section here; its text becomes the release notes on GitHub
+(see [RELEASING.md](RELEASING.md)). Newest first.
+
+## 0.1.0 - 2026-11-13
+
+First public release.
+
+### Editor
+- Rope-based text editor with multi-cursor editing (`Ctrl+Click`, `Ctrl+D`, `Ctrl+Alt+↑/↓`),
+  regex find and replace, soft wrap, bracket matching, minimap, git gutter and an undo history
+  that never loses a step.
+- Code folding for every language (indentation based), gutter arrows, *Fold All* / *Fold Level N*.
+- Split view (right / down) with a name bar per pane, drag-and-drop tab reordering.
+- Syntax highlighting for about 50 languages: 25 tree-sitter grammars plus a light lexer.
+- Hex editor for binary files (in-place byte patching) and an image viewer.
+- Markdown preview next to the source, with real wrapping tables.
+- *Trim trailing whitespace on save* (off by default, keeps Markdown's two-space line breaks).
+
+### Project
+- Multi-root folder sidebar with file-type badges and a right-click menu (new, rename, trash,
+  copy path); preview tabs (single click) and permanent tabs (double click).
+- `Ctrl+P` fuzzy file open, `Ctrl+Shift+P` command palette, `Ctrl+Shift+F` find in files with
+  `*.php, !vendor` style filters.
+
+### Robustness
+- Hot exit: tabs, folders and unsaved drafts come back after a restart; unsaved tabs are named
+  after their first line.
+- One window: opening a file from the file manager hands it to the running editor.
+- Safe on network mounts (SFTP/sshfs/NFS over a flaky VPN): a mount that stops answering never
+  freezes the window, reloads from disk are undoable and never empty a buffer, and a frozen
+  window does not block the next launch.
+- Starts in well under 100 ms; the UI thread never waits for disk, git or highlighting.
+
+### Packaging
+- Linux x86_64 and aarch64 tarballs with an installer that needs no root (`install.sh`).
+  Built on Ubuntu 22.04: needs glibc 2.35 or newer.

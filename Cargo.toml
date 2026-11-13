@@ -1,0 +1,93 @@
+[package]
+name = "veloedit"
+version = "0.1.0"
+edition = "2024"
+description = "VeloEdit - millisecond-start, GPU-accelerated, multi-view text editor"
+license = "MIT"
+rust-version = "1.92"
+readme = "README.md"
+repository = "https://github.com/tkinali/veloedit"
+homepage = "https://tkinali.github.io/veloedit/"
+keywords = ["editor", "text-editor", "gui", "iced"]
+categories = ["text-editors", "gui"]
+
+[dependencies]
+# GUI: iced (pure Rust, wgpu + tiny-skia software fallback, X11 + Wayland).
+# `image-without-codecs` -> we pick the codecs ourselves (see `image` below),
+# otherwise `iced/image` drags in AVIF/rav1e and doubles compile time.
+iced = { version = "0.14", default-features = false, features = [
+    "wgpu", "tiny-skia", "x11", "wayland", "crisp", "thread-pool",
+    "tokio", "image-without-codecs", "advanced", "markdown",
+] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp", "ico"] }
+
+# Workspace scanning (.gitignore-aware) and content/type detection.
+ignore = "0.4"
+nucleo-matcher = "0.3"
+mime_guess = "2"
+
+# Native file/folder dialogs via xdg-desktop-portal (no GTK link dependency).
+rfd = { version = "0.18", default-features = false, features = ["xdg-portal"] }
+
+# Session persistence.
+# Editor core: rope buffer, display widths, line diffs for the git gutter.
+ropey = { version = "1.6", default-features = false, features = ["simd"] }
+unicode-width = "0.2"
+similar = "2"
+
+# Find / replace (always through the regex engine; literal queries are escaped).
+regex = "1"
+
+# Syntax highlighting: incremental tree-sitter parsing + each grammar's highlights query.
+tree-sitter = "0.27"
+streaming-iterator = "0.1"
+tree-sitter-rust = "0.24"
+tree-sitter-python = "0.25"
+tree-sitter-javascript = "0.25"
+tree-sitter-typescript = "0.23"
+tree-sitter-json = "0.24"
+tree-sitter-toml-ng = "0.7"
+tree-sitter-bash = "0.25"
+tree-sitter-c = "0.24"
+tree-sitter-html = "0.23"
+tree-sitter-css = "0.25"
+tree-sitter-yaml = "0.7"
+tree-sitter-go = "0.25"
+
+# File watching (inotify). Only visible directories are watched, non-recursively.
+notify = "8"
+tokio = { version = "1", default-features = false, features = ["time", "net", "io-util"] }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dirs = "6"
+tree-sitter-php = "0.25"
+tree-sitter-ruby = "0.23"
+tree-sitter-java = "0.23"
+tree-sitter-lua = "0.5"
+tree-sitter-md = "0.5"
+tree-sitter-xml = "0.7"
+tree-sitter-scss = "1"
+tree-sitter-make = "1"
+tree-sitter-cmake = "0.7"
+tree-sitter-ini = "1"
+tree-sitter-diff = "0.1"
+trash = "5"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "time"] }
+# Headless UI tests/screenshots (tiny-skia software renderer, no display needed).
+iced_test = "0.14"

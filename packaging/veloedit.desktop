@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=VeloEdit
+GenericName=Text Editor
+Comment=Millisecond-start, GPU-accelerated text editor
+Exec=veloedit %F
+Icon=veloedit
+Terminal=false
+Categories=Utility;TextEditor;
+Keywords=editor;text;code;
+MimeType=text/plain;text/markdown;text/x-python;application/x-php;application/json;application/xml;text/html;text/css;text/x-csrc;text/x-rust;application/x-shellscript;
+StartupWMClass=veloedit
+StartupNotify=false
