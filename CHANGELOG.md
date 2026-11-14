@@ -3,6 +3,19 @@
 Every release has a section here; its text becomes the release notes on GitHub
 (see [RELEASING.md](RELEASING.md)). Newest first.
 
+## 0.1.1 - 2026-11-14
+
+### Added
+- **Windows 10/11 x64 build (preview).** `veloedit-<version>-x86_64-windows.zip`: unpack it anywhere and
+  run `veloedit.exe`. It is much less tested than the Linux build and not code-signed (SmartScreen
+  asks for confirmation). The single-window handshake uses a named pipe, the editor font is Consolas,
+  and the git change marks need Git for Windows.
+- **Linux packages:** `.deb` (amd64, arm64), `.rpm` (x86_64, aarch64) and `.AppImage` (x86_64, aarch64)
+  next to the tarballs. The `.rpm` is unsigned: install it with `dnf install ./veloedit-*.rpm`.
+
+### Changed
+- Saving retries the final rename a few times on Windows (a virus scanner may hold the new file for a moment).
+
 ## 0.1.0 - 2026-11-13
 
 First public release.
@@ -36,5 +49,3 @@ First public release.
 ### Packaging
 - Linux x86_64 and aarch64 tarballs with an installer that needs no root (`install.sh`).
   Built on Ubuntu 22.04: needs glibc 2.35 or newer.
-- Windows 10/11 x64 zip with `veloedit.exe` (**preview**: much less tested than Linux, not
-  code-signed). Single-window handshake over a named pipe, Consolas as the editor font.
