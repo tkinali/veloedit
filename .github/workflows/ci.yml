@@ -6,13 +6,18 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      # The headless UI tests render text: they need at least one font.
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-dejavu-core fonts-noto-core
+      # The headless UI tests render text: they need at least one font (Windows has its own).
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-dejavu-core fonts-noto-core
       # The runners have no GPU: render the UI snapshots with the software renderer (tested locally the same way).
       - run: cargo test --release --locked
         env:

@@ -1,5 +1,9 @@
 //! VeloEdit - entry point. See ARCHITECTURE.md for the module map.
 
+// A Windows program is a console program unless it says otherwise: without this a black
+// console window would open behind the editor.
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+
 mod app;
 mod detect;
 mod editor;
@@ -31,6 +35,18 @@ fn window_icon() -> Option<window::Icon> {
     let img = image::load_from_memory_with_format(PNG, image::ImageFormat::Png).ok()?.into_rgba8();
     let (w, h) = img.dimensions();
     window::icon::from_rgba(img.into_raw(), w, h).ok()
+}
+
+/// The window settings that exist on one platform only: the application id (taskbar grouping
+/// and icon through the `.desktop` file) on Linux.
+#[cfg(target_os = "linux")]
+fn platform_specific() -> window::settings::PlatformSpecific {
+    window::settings::PlatformSpecific { application_id: "veloedit".to_owned(), ..Default::default() }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn platform_specific() -> window::settings::PlatformSpecific {
+    window::settings::PlatformSpecific::default()
 }
 
 fn main() -> iced::Result {
@@ -88,10 +104,7 @@ fn main() -> iced::Result {
             position,
             maximized: saved.maximized,
             icon: window_icon(),
-            platform_specific: window::settings::PlatformSpecific {
-                application_id: "veloedit".to_owned(),
-                ..Default::default()
-            },
+            platform_specific: platform_specific(),
             ..Default::default()
         })
         .exit_on_close_request(false) // we persist the session first (see Message::CloseRequested)

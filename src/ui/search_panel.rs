@@ -25,7 +25,7 @@ use crate::{
 pub const FILTER_ID: &str = "veloedit-search-filter";
 pub const SCROLL_ID: &str = "veloedit-search-scroll";
 pub const ROW_H: f32 = 24.0;
-const MONO: Font = Font::MONOSPACE;
+const MONO: Font = theme::MONO;
 
 pub fn view<'a>(c: C, p: &'a Palette, no_roots: bool) -> Element<'a, Message> {
     let toggle = |label: &'static str, on: bool, flag: FindFlag| -> Element<'a, Message> {

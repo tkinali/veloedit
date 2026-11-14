@@ -9,6 +9,11 @@ use iced::{
 
 use crate::syntax::Group;
 
+/// The fixed-width font of the editor, hex view and result lists. The system's generic
+/// "monospace" everywhere but on Windows, where that maps to Courier New: Consolas ships
+/// with every Windows.
+pub const MONO: iced::Font = if cfg!(windows) { iced::Font::with_name("Consolas") } else { iced::Font::MONOSPACE };
+
 pub const FONT_SIZE: f32 = 13.0;
 
 /// Every color the UI uses. Cheap to share: always handled as [`C`].

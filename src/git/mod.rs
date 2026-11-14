@@ -69,11 +69,24 @@ impl GitState {
     }
 }
 
+/// `git`, without a console window: a Windows GUI program that starts a console program
+/// otherwise shows a black window for as long as it runs.
+fn git() -> Command {
+    #[cfg_attr(not(windows), allow(unused_mut))]
+    let mut cmd = Command::new("git");
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    }
+    cmd
+}
+
 /// The file's content at `HEAD`. Blocking (spawns `git`); call from a worker.
 pub fn base_text(path: &Path) -> Option<String> {
     let dir = path.parent()?;
     let name = path.file_name()?.to_str()?;
-    let out = Command::new("git")
+    let out = git()
         .arg("-C")
         .arg(dir)
         .arg("show")
@@ -149,14 +162,14 @@ mod tests {
 
     #[test]
     fn base_text_reads_head_and_is_none_outside_a_repo() {
-        if Command::new("git").arg("--version").output().is_err() {
+        if git().arg("--version").output().is_err() {
             return; // no git here: the feature degrades to "no marks"
         }
         let dir = std::env::temp_dir().join(format!("veloedit-git-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let git = |args: &[&str]| {
-            let ok = Command::new("git")
+            let ok = git()
                 .arg("-C")
                 .arg(&dir)
                 .args(["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"])

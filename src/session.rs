@@ -191,9 +191,25 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> io::Result<()> {
     if let Ok(meta) = fs::metadata(&target) {
         let _ = fs::set_permissions(&tmp, meta.permissions());
     }
-    fs::rename(&tmp, &target).inspect_err(|_| {
+    rename_replacing(&tmp, &target).inspect_err(|_| {
         let _ = fs::remove_file(&tmp);
     })
+}
+
+/// `fs::rename` (which replaces an existing target on every platform), with a few retries on
+/// Windows: a virus scanner or the search indexer may hold the file just written for a moment,
+/// and the rename then fails with "Access is denied".
+fn rename_replacing(from: &Path, to: &Path) -> io::Result<()> {
+    let mut tries = 0u64;
+    loop {
+        match fs::rename(from, to) {
+            Err(e) if cfg!(windows) && e.kind() == io::ErrorKind::PermissionDenied && tries < 6 => {
+                tries += 1;
+                std::thread::sleep(std::time::Duration::from_millis(50 * tries));
+            }
+            other => return other,
+        }
+    }
 }
 
 #[cfg(test)]

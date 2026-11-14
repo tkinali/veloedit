@@ -111,9 +111,35 @@ pub fn is_file(path: &Path) -> Option<bool> {
 pub fn canonical(path: &Path) -> PathBuf {
     let owned = path.to_path_buf();
     match bounded(PROBE, move || std::fs::canonicalize(&owned)) {
-        Some(Ok(real)) => real,
+        Some(Ok(real)) => plain(real),
         _ => std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf()),
     }
+}
+
+/// Windows canonicalizes to "verbatim" paths (`\\?\C:\dir`, `\\?\UNC\server\share`). They work,
+/// but they are ugly in a title bar and they never equal the `C:\dir` a file dialog returns
+/// (so the same file would open twice): back to the ordinary spelling.
+#[cfg(windows)]
+fn plain(path: PathBuf) -> PathBuf {
+    path.to_str().and_then(strip_verbatim).map_or(path, PathBuf::from)
+}
+
+#[cfg(not(windows))]
+fn plain(path: PathBuf) -> PathBuf {
+    path
+}
+
+/// `\\?\C:\dir` -> `C:\dir`, `\\?\UNC\server\share` -> `\\server\share`; `None` when `path` is not verbatim
+/// (or is one that has no ordinary spelling, like `\\?\Volume{...}`).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn strip_verbatim(path: &str) -> Option<String> {
+    let rest = path.strip_prefix(r"\\?\")?;
+    if let Some(unc) = rest.strip_prefix(r"UNC\") {
+        return Some(format!(r"\\{unc}"));
+    }
+    let mut chars = rest.chars();
+    let (drive, colon) = (chars.next()?, chars.next()?);
+    (drive.is_ascii_alphabetic() && colon == ':').then(|| rest.to_owned())
 }
 
 #[cfg(test)]
@@ -127,12 +153,21 @@ mod tests {
     }
 
     #[test]
+    fn windows_verbatim_paths_get_their_ordinary_spelling_back() {
+        assert_eq!(strip_verbatim(r"\\?\C:\Users\me\a.txt").as_deref(), Some(r"C:\Users\me\a.txt"));
+        assert_eq!(strip_verbatim(r"\\?\UNC\srv\share\a.txt").as_deref(), Some(r"\\srv\share\a.txt"));
+        assert_eq!(strip_verbatim(r"C:\Users\me").as_deref(), None, "already ordinary");
+        assert_eq!(strip_verbatim(r"\\?\Volume{1234}\a").as_deref(), None, "no ordinary spelling");
+        assert_eq!(strip_verbatim("/home/me"), None);
+    }
+
+    #[test]
     fn probes_answer_quickly_for_ordinary_paths() {
         let dir = std::env::temp_dir();
         assert_eq!(is_dir(&dir), Some(true));
         assert_eq!(is_file(&dir), Some(false));
         assert_eq!(is_dir(&dir.join("veloedit-surely-not-here")), Some(false));
-        assert_eq!(canonical(&dir), std::fs::canonicalize(&dir).unwrap());
+        assert_eq!(canonical(&dir), plain(std::fs::canonicalize(&dir).unwrap()));
         // Not there yet: the absolute form, never an error.
         let ghost = canonical(Path::new("veloedit-ghost/file.txt"));
         assert!(ghost.is_absolute() && ghost.ends_with("veloedit-ghost/file.txt"), "{ghost:?}");

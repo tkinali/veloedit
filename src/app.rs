@@ -1099,7 +1099,7 @@ impl App {
             Message::CopyText(text) => iced::clipboard::write(text),
             Message::Reveal(path) => {
                 let dir = if fsx::is_dir(&path) == Some(true) { path } else { path.parent().map(Path::to_path_buf).unwrap_or(path) };
-                xdg_open(dir.into_os_string());
+                open_with_desktop(dir.into_os_string());
                 Task::none()
             }
             Message::OpenLink(url) => self.open_link(url),
@@ -1670,7 +1670,7 @@ impl App {
     fn open_link(&mut self, url: String) -> Task<Message> {
         let lower = url.to_ascii_lowercase();
         if ["http://", "https://", "mailto:"].iter().any(|p| lower.starts_with(p)) {
-            xdg_open(url.into());
+            open_with_desktop(url.into());
             return Task::none();
         }
         // A relative link to another file next to this document.
@@ -2899,10 +2899,18 @@ fn modal_key(event: Event, _status: event::Status, _window: window::Id) -> Optio
     }
 }
 
-/// Hands a path or URL to the desktop (`xdg-open`) without blocking the UI.
-fn xdg_open(target: std::ffi::OsString) {
+/// The program that opens a path or URL the way the desktop does.
+#[cfg(not(windows))]
+const DESKTOP_OPEN: &str = "xdg-open";
+/// (Explorer opens a folder in a window, a file in its default program, a URL in the browser;
+/// it exits with 1 even then, which nobody looks at.)
+#[cfg(windows)]
+const DESKTOP_OPEN: &str = "explorer.exe";
+
+/// Hands a path or URL to the desktop (`xdg-open`, Explorer) without blocking the UI.
+fn open_with_desktop(target: std::ffi::OsString) {
     std::thread::spawn(move || {
-        let child = std::process::Command::new("xdg-open")
+        let child = std::process::Command::new(DESKTOP_OPEN)
             .arg(&target)
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())

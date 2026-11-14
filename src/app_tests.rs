@@ -96,7 +96,10 @@ fn create_project() -> PathBuf {
     // 1 GiB sparse file with a marker in the middle.
     let huge = fs::File::create(root.join("huge.bin")).unwrap();
     huge.set_len(1 << 30).unwrap();
+    #[cfg(unix)]
     std::os::unix::fs::FileExt::write_at(&huge, b"ABCDEFGHIJKLMNOP", 1 << 29).unwrap();
+    #[cfg(windows)]
+    std::os::windows::fs::FileExt::seek_write(&huge, b"ABCDEFGHIJKLMNOP", 1 << 29).unwrap();
     root
 }
 
@@ -2583,6 +2586,8 @@ fn the_window_title_shows_the_whole_path_of_a_saved_file() {
     assert!(app.title().contains("scratch notes") && !app.title().contains('/'), "{}", app.title());
 }
 
+// A FIFO (`mkfifo`) is what stands in for the dead mount: Unix only.
+#[cfg(unix)]
 #[test]
 fn a_draft_comes_back_even_when_its_file_sits_on_a_mount_that_never_answers() {
     // A FIFO stands in for the dead mount: opening it blocks until somebody writes to it.

@@ -4,7 +4,7 @@
 [![Release](https://img.shields.io/github/v/release/tkinali/veloedit)](https://github.com/tkinali/veloedit/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A fast, light, GPU-accelerated text editor for Linux, in the spirit of Sublime Text.
+A fast, light, GPU-accelerated text editor for Linux (and, as a preview, Windows), in the spirit of Sublime Text.
 Written in Rust with [iced](https://iced.rs). Opens in well under 100 ms, keeps your
 unsaved work across restarts, and never blocks the UI on disk, git or highlighting.
 
@@ -61,6 +61,16 @@ You need a normal Linux desktop session: X11 or Wayland, a font, and either a Vu
 (Mesa is fine) or nothing at all - without a usable GPU VeloEdit falls back to its software renderer
 (`ICED_BACKEND=tiny-skia veloedit` forces it). File dialogs use `xdg-desktop-portal` (present on every
 mainstream desktop). The binary needs glibc 2.35 or newer (Ubuntu 22.04+, Fedora 36+, Debian 12+).
+
+### Windows 10 / 11 (preview)
+
+Download `veloedit-<version>-x86_64-windows.zip` from the Releases page, unpack it anywhere and
+double-click `veloedit.exe`. There is no installer: to remove VeloEdit delete the folder (settings
+and the saved session live in `%APPDATA%\veloedit` and `%LOCALAPPDATA%\veloedit`).
+
+The Windows build is new and much less tested than the Linux one. The program is not code-signed,
+so SmartScreen may warn on the first start (*More info* -> *Run anyway*). The git change marks need
+[Git for Windows](https://git-scm.com/download/win); everything else works without it.
 
 ### From source
 

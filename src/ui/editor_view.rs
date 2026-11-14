@@ -9,7 +9,7 @@
 use std::time::{Duration, Instant};
 
 use iced::{
-    Border, Color, Element, Event, Font, Length, Pixels, Point, Rectangle, Shadow, Size, Theme,
+    Border, Color, Element, Event, Length, Pixels, Point, Rectangle, Shadow, Size, Theme,
     advanced::{
         Clipboard, Layout, Renderer as _, Shell, Widget, clipboard, layout, mouse,
         renderer::{self, Quad},
@@ -287,7 +287,7 @@ pub(super) fn measure_char_w(size: f32) -> f32 {
         bounds: Size::INFINITE,
         size: Pixels(size),
         line_height: LineHeight::Absolute(Pixels(size * 1.4)),
-        font: Font::MONOSPACE,
+        font: super::theme::MONO,
         align_x: text::Alignment::Left,
         align_y: alignment::Vertical::Top,
         shaping: Shaping::Basic,
@@ -751,7 +751,7 @@ impl<Message> Widget<Message, Theme, Renderer> for EditorView<'_, Message> {
                     bounds: Size::new(w, m.line_h),
                     size,
                     line_height: LineHeight::Absolute(Pixels(m.line_h)),
-                    font: Font::MONOSPACE,
+                    font: super::theme::MONO,
                     align_x: text::Alignment::Left,
                     align_y: alignment::Vertical::Top,
                     shaping: Shaping::Auto,

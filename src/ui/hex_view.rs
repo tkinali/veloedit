@@ -3,7 +3,7 @@
 //! scrolls exactly: no pixel-height cap, no scrollable involved).
 
 use iced::{
-    Border, Color, Element, Event, Font, Length, Pixels, Point, Rectangle, Shadow, Size, Theme,
+    Border, Color, Element, Event, Length, Pixels, Point, Rectangle, Shadow, Size, Theme,
     advanced::{
         Clipboard, Layout, Renderer as _, Shell, Widget, layout, mouse,
         renderer::{self, Quad},
@@ -331,7 +331,7 @@ impl<Message> Widget<Message, Theme, Renderer> for HexView<'_, Message> {
                     bounds: Size::new(w, line_h),
                     size,
                     line_height: LineHeight::Absolute(Pixels(line_h)),
-                    font: Font::MONOSPACE,
+                    font: super::theme::MONO,
                     align_x: text::Alignment::Left,
                     align_y: alignment::Vertical::Top,
                     shaping: Shaping::Basic,

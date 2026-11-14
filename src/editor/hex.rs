@@ -11,9 +11,40 @@ use std::{
     collections::BTreeMap,
     fs::{File, OpenOptions},
     io,
-    os::unix::fs::FileExt,
     path::Path,
 };
+#[cfg(unix)]
+use std::os::unix::fs::FileExt;
+
+/// `pread` / `pwrite` under the names `std::os::unix::fs::FileExt` has, for Windows
+/// (`seek_read` / `seek_write`; they move the file cursor, which nothing here relies on).
+#[cfg(windows)]
+trait FileExt {
+    fn read_at(&self, buf: &mut [u8], offset: u64) -> io::Result<usize>;
+    fn write_all_at(&self, buf: &[u8], offset: u64) -> io::Result<()>;
+}
+
+#[cfg(windows)]
+impl FileExt for File {
+    fn read_at(&self, buf: &mut [u8], offset: u64) -> io::Result<usize> {
+        std::os::windows::fs::FileExt::seek_read(self, buf, offset)
+    }
+
+    fn write_all_at(&self, mut buf: &[u8], mut offset: u64) -> io::Result<()> {
+        while !buf.is_empty() {
+            match std::os::windows::fs::FileExt::seek_write(self, buf, offset) {
+                Ok(0) => return Err(io::ErrorKind::WriteZero.into()),
+                Ok(n) => {
+                    buf = &buf[n..];
+                    offset += n as u64;
+                }
+                Err(e) if e.kind() == io::ErrorKind::Interrupted => {}
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(())
+    }
+}
 
 pub const BYTES_PER_ROW: u64 = 16;
 /// Rows kept in memory around the view.

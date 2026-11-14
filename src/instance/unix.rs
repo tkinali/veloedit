@@ -1,18 +1,9 @@
-//! One window per user: starting `veloedit some/file` while VeloEdit is already
-//! running hands the paths to the running window and exits, instead of opening a
-//! second window (two windows would also fight over the one session file).
-//!
-//! The first instance listens on a Unix socket (`$XDG_RUNTIME_DIR/veloedit.sock`,
-//! or inside `$VELOEDIT_STATE_DIR` when that is set, so test/dev runs with their own
-//! state never talk to the real editor). A stale socket left by a crash is detected
-//! (nobody answers) and taken over. Messages are one line of JSON.
-//!
-//! A running window that does not answer is taken over as well. The first instance
-//! confirms every request with one byte - *after its UI thread has handled it* - and a
-//! launch that gets no confirmation does not trust that window: it unlinks the socket and
-//! becomes the window itself. (Without this, a window frozen on a dead network mount
-//! swallowed every later launch: the paths were "delivered" into a process that never
-//! looked at them, and the editor could not be started again.)
+//! The Unix transport of the single-window handshake: a Unix socket
+//! (`$XDG_RUNTIME_DIR/veloedit.sock`, or inside `$VELOEDIT_STATE_DIR` when that is set, so
+//! test/dev runs with their own state never talk to the real editor). A stale socket left
+//! by a crash is detected (nobody answers) and taken over; so is a window that does not
+//! confirm (it is unlinked and replaced). The request is one line of JSON, the end of it is
+//! the client shutting down its write side.
 
 use std::{
     io::{Read, Write},
@@ -26,32 +17,13 @@ use std::{
     time::Duration,
 };
 
-use iced::{Subscription, futures::{SinkExt, Stream, channel::oneshot}};
-use serde::{Deserialize, Serialize};
+use iced::{Subscription, futures::Stream};
 
-use crate::message::{Handoff, Message};
+use super::{CONFIRM, Claim, MAX_REQUEST, OK, Request, TIMEOUT, deliver};
+use crate::message::Message;
 
-/// A request is a few paths; anything bigger is not ours.
-const MAX_REQUEST: u64 = 1 << 20;
-const TIMEOUT: Duration = Duration::from_millis(800);
-/// How long a launch waits for the running window to confirm it took the paths. The window
-/// itself waits a little less before it gives up on its own UI thread.
-const CONFIRM: Duration = Duration::from_millis(1500);
-const UI_ANSWER: Duration = Duration::from_millis(1200);
-/// What the running window sends back.
-const OK: u8 = b'k';
-
-#[derive(Serialize, Deserialize)]
-struct Request {
-    open: Vec<PathBuf>,
-}
-
-pub enum Claim {
-    /// We are the window; the listener (if any) receives requests from later launches.
-    Primary(Option<UnixListener>),
-    /// A running window took the paths over: exit quietly.
-    Forwarded,
-}
+/// What `main` hands to [`serve`] when this process is the window.
+pub type Listener = UnixListener;
 
 pub fn socket_path() -> PathBuf {
     let wanted = if let Some(dir) = std::env::var_os("VELOEDIT_STATE_DIR") {
@@ -164,10 +136,10 @@ fn cleanup_at(socket: &Path) {
 
 // ------------------------------------------------------------------- server
 
-static LISTENER: Mutex<Option<UnixListener>> = Mutex::new(None);
+static LISTENER: Mutex<Option<Listener>> = Mutex::new(None);
 
 /// Hands the listener to the subscription (called once, from `main`).
-pub fn serve(listener: UnixListener) {
+pub fn serve(listener: Listener) {
     if let Ok(mut slot) = LISTENER.lock() {
         *slot = Some(listener);
     }
@@ -201,18 +173,12 @@ fn requests() -> impl Stream<Item = Message> {
             let mut stream = limited.into_inner();
             let Ok(req) = serde_json::from_slice::<Request>(&line) else { continue };
             // The confirmation comes from the UI thread itself, after it handled the paths.
-            let (alive, answer) = oneshot::channel();
-            let _ = out.send(Message::External(req.open)).await;
-            let _ = out.send(Message::Alive(Handoff::new(alive))).await;
-            match tokio::time::timeout(UI_ANSWER, answer).await {
-                Ok(Ok(())) => {
-                    let _ = tokio::io::AsyncWriteExt::write_all(&mut stream, &[OK]).await;
-                }
-                _ => {
-                    unanswered.push_back(stream);
-                    if unanswered.len() > 4 {
-                        unanswered.pop_front();
-                    }
+            if deliver(&mut out, req.open).await {
+                let _ = tokio::io::AsyncWriteExt::write_all(&mut stream, &[OK]).await;
+            } else {
+                unanswered.push_back(stream);
+                if unanswered.len() > 4 {
+                    unanswered.pop_front();
                 }
             }
         }

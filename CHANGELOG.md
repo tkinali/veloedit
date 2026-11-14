@@ -36,3 +36,5 @@ First public release.
 ### Packaging
 - Linux x86_64 and aarch64 tarballs with an installer that needs no root (`install.sh`).
   Built on Ubuntu 22.04: needs glibc 2.35 or newer.
+- Windows 10/11 x64 zip with `veloedit.exe` (**preview**: much less tested than Linux, not
+  code-signed). Single-window handshake over a named pipe, Consolas as the editor font.

@@ -210,6 +210,7 @@
   }
   pre button:hover { color: #fff; border-color: var(--accent); }
   .req { margin: .4rem 0 0; padding-left: 1.1rem; font-size: .93rem; color: var(--text); }
+  .panel.wide { grid-column: 1 / -1; }
   .req li { margin: .25rem 0; }
 
   /* ---- shortcuts ---- */
@@ -271,8 +272,8 @@
   <div class="wrap">
     <span class="eyebrow">
       <b data-version>v0.1</b>
-      <span class="t" lang="en">for Linux · free &amp; open source</span>
-      <span class="t" lang="tr">Linux için · özgür ve açık kaynak</span>
+      <span class="t" lang="en">Linux &amp; Windows (preview) · free &amp; open source</span>
+      <span class="t" lang="tr">Linux ve Windows (ön sürüm) · özgür ve açık kaynak</span>
     </span>
     <h1>
       <span class="t" lang="en">The editor that <em>opens before you blink.</em></span>
@@ -293,8 +294,8 @@
       </a>
     </div>
     <p class="small">
-      <span class="t" lang="en">x86_64 and aarch64 · installs into your home folder, no root needed · MIT licensed</span>
-      <span class="t" lang="tr">x86_64 ve aarch64 · ev dizinine kurulur, root gerekmez · MIT lisanslı</span>
+      <span class="t" lang="en">Linux x86_64 and aarch64 · Windows 10/11 x64 (preview) · no admin rights needed · MIT licensed</span>
+      <span class="t" lang="tr">Linux x86_64 ve aarch64 · Windows 10/11 x64 (ön sürüm) · yönetici hakkı gerekmez · MIT lisanslı</span>
     </p>
 
     <figure class="window">
@@ -498,7 +499,7 @@
   <div class="wrap">
     <div class="center">
       <h2><span class="t" lang="en">Install in a minute</span><span class="t" lang="tr">Bir dakikada kur</span></h2>
-      <p class="sub"><span class="t" lang="en">Latest release: <b data-version>see Releases</b>. It installs into your home folder and adds itself to the application menu and to "Open with".</span><span class="t" lang="tr">Son sürüm: <b data-version>Sürümler'e bak</b>. Ev dizinine kurulur, uygulama menüsüne ve "Birlikte aç"a eklenir.</span></p>
+      <p class="sub"><span class="t" lang="en">Latest release: <b data-version>see Releases</b>. On Linux it installs into your home folder and adds itself to the application menu and to "Open with"; on Windows it is a zip you unpack anywhere.</span><span class="t" lang="tr">Son sürüm: <b data-version>Sürümler'e bak</b>. Linux'ta ev dizinine kurulur, uygulama menüsüne ve "Birlikte aç"a eklenir; Windows'ta istediğin yere açtığın bir zip'tir.</span></p>
     </div>
 
     <div class="install">
@@ -530,6 +531,20 @@ packaging/install.sh</code></pre>
           <li><span class="t" lang="en">glibc 2.35 or newer: Ubuntu 22.04+, Fedora 36+, Debian 12+</span><span class="t" lang="tr">glibc 2.35 ya da daha yenisi: Ubuntu 22.04+, Fedora 36+, Debian 12+</span></li>
           <li><span class="t" lang="en">A GPU is optional: without one VeloEdit uses its software renderer</span><span class="t" lang="tr">GPU isteğe bağlı: yoksa VeloEdit yazılım çizicisini kullanır</span></li>
         </ul>
+      </div>
+
+      <div class="panel wide">
+        <h3><span class="t" lang="en">Windows 10 / 11 (64-bit) · preview</span><span class="t" lang="tr">Windows 10 / 11 (64 bit) · ön sürüm</span></h3>
+        <p><span class="t" lang="en">The Windows build is new and has had far less testing than the Linux one. Bug reports are very welcome.</span><span class="t" lang="tr">Windows sürümü yeni ve Linux sürümünden çok daha az denendi. Hata bildirimlerini çok isteriz.</span></p>
+        <div class="dl">
+          <a class="btn primary" data-asset="windows" href="https://github.com/tkinali/veloedit/releases/latest">veloedit-…-x86_64-windows.zip</a>
+        </div>
+        <ol class="req">
+          <li><span class="t" lang="en">Unpack the zip anywhere (for example into <code>C:\Tools\VeloEdit</code>) and double-click <code>veloedit.exe</code>.</span><span class="t" lang="tr">Zip'i istediğin yere aç (örneğin <code>C:\Tools\VeloEdit</code>) ve <code>veloedit.exe</code>'ye çift tıkla.</span></li>
+          <li><span class="t" lang="en">The program is not code-signed yet, so Windows SmartScreen may say "Windows protected your PC": click <em>More info</em>, then <em>Run anyway</em>.</span><span class="t" lang="tr">Program henüz imzalı değil; Windows SmartScreen "Bilgisayarınız korundu" diyebilir: <em>Ek bilgi</em>'ye, sonra <em>Yine de çalıştır</em>'a tıkla.</span></li>
+          <li><span class="t" lang="en">For the git change marks next to the line numbers, <a href="https://git-scm.com/download/win">Git for Windows</a> must be installed. Everything else works without it.</span><span class="t" lang="tr">Satır numaralarının yanındaki git işaretleri için <a href="https://git-scm.com/download/win">Git for Windows</a> kurulu olmalı. Geri kalan her şey onsuz çalışır.</span></li>
+        </ol>
+        <p class="small"><span class="t" lang="en">Settings and the saved session live in <code>%APPDATA%\veloedit</code> and <code>%LOCALAPPDATA%\veloedit</code>. To remove VeloEdit, delete the folder.</span><span class="t" lang="tr">Ayarlar ve kayıtlı oturum <code>%APPDATA%\veloedit</code> ve <code>%LOCALAPPDATA%\veloedit</code> içinde durur. Kaldırmak için klasörü sil.</span></p>
       </div>
     </div>
   </div>
@@ -629,9 +644,10 @@ packaging/install.sh</code></pre>
           if (!rel || !rel.tag_name) return;
           document.querySelectorAll("[data-version]").forEach(function (el) { el.textContent = rel.tag_name; });
           (rel.assets || []).forEach(function (a) {
-            var m = /-(x86_64|aarch64)-linux\.tar\.gz$/.exec(a.name);
-            if (!m) return;
-            document.querySelectorAll('[data-asset="' + m[1] + '"]').forEach(function (el) { el.href = a.browser_download_url; });
+            var linux = /-(x86_64|aarch64)-linux\.tar\.gz$/.exec(a.name);
+            var key = linux ? linux[1] : (/-x86_64-windows\.zip$/.test(a.name) ? "windows" : null);
+            if (!key) return;
+            document.querySelectorAll('[data-asset="' + key + '"]').forEach(function (el) { el.href = a.browser_download_url; });
           });
         })
         .catch(function () {});
