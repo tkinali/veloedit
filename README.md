@@ -46,7 +46,20 @@ unsaved work across restarts, and never blocks the UI on disk, git or highlighti
 
 ### Prebuilt (Linux x86_64 / aarch64)
 
-Download `veloedit-<version>-<arch>-linux.tar.gz` from the [Releases page](https://github.com/tkinali/veloedit/releases/latest), then:
+Download the file for your system from the [Releases page](https://github.com/tkinali/veloedit/releases/latest):
+
+| File | For | Install |
+|---|---|---|
+| `veloedit_<version>-1_amd64.deb` / `_arm64.deb` | Debian, Ubuntu, Mint | `sudo apt install ./veloedit_*.deb` |
+| `veloedit-<version>-1.x86_64.rpm` / `.aarch64.rpm` | Fedora, openSUSE, RHEL | `sudo dnf install ./veloedit-*.rpm` |
+| `VeloEdit-<version>-<arch>.AppImage` | any distribution | `chmod +x VeloEdit-*.AppImage && ./VeloEdit-*.AppImage` |
+| `veloedit-<version>-<arch>-linux.tar.gz` | any distribution, no root | see below |
+
+The packages install `/usr/bin/veloedit`, the icon and a launcher entry ("Open with VeloEdit" works in
+the file manager); `sudo apt remove veloedit` / `sudo dnf remove veloedit` removes it. The AppImage needs
+FUSE (Ubuntu 22.04 and later: `sudo apt install libfuse2`), or run it with `--appimage-extract-and-run`.
+
+The tarball installs into your home folder:
 
 ```bash
 tar xzf veloedit-*-linux.tar.gz
@@ -54,13 +67,13 @@ cd veloedit-*-linux
 ./install.sh                 # into ~/.local (no root); `PREFIX=/usr/local sudo -E ./install.sh` for everyone
 ```
 
-This installs the program, the icon and a launcher entry ("Open with VeloEdit" works in the file
-manager). `./install.sh --uninstall` removes it again.
+`./install.sh --uninstall` removes it again. All files are built on Ubuntu 22.04 and need glibc 2.35 or newer
+(Ubuntu 22.04+, Fedora 36+, Debian 12+).
 
 You need a normal Linux desktop session: X11 or Wayland, a font, and either a Vulkan/OpenGL driver
 (Mesa is fine) or nothing at all - without a usable GPU VeloEdit falls back to its software renderer
 (`ICED_BACKEND=tiny-skia veloedit` forces it). File dialogs use `xdg-desktop-portal` (present on every
-mainstream desktop). The binary needs glibc 2.35 or newer (Ubuntu 22.04+, Fedora 36+, Debian 12+).
+mainstream desktop).
 
 ### Windows 10 / 11 (preview)
 

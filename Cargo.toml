@@ -74,6 +74,44 @@ tree-sitter-ini = "1"
 tree-sitter-diff = "0.1"
 trash = "5"
 
+# ---- Linux packages (scripts/package-deb.sh, package-rpm.sh) ----
+[package.metadata.deb]
+maintainer = "Tuncay KINALI <tkinali@gmail.com>"
+copyright = "2026, VeloEdit contributors"
+license-file = ["LICENSE", "0"]
+extended-description = """\
+VeloEdit is a fast, light, GPU-accelerated text editor in the spirit of Sublime Text: \
+multi-cursor editing, tree-sitter highlighting for about 50 languages, code folding, \
+split view, find in files, Markdown preview, a hex editor and hot exit."""
+section = "editors"
+priority = "optional"
+depends = "$auto"
+recommends = "git, xdg-desktop-portal"
+assets = [
+    ["target/release/veloedit", "usr/bin/", "755"],
+    ["packaging/veloedit.desktop", "usr/share/applications/", "644"],
+    ["assets/icon-128.png", "usr/share/icons/hicolor/128x128/apps/veloedit.png", "644"],
+    ["assets/icon-256.png", "usr/share/icons/hicolor/256x256/apps/veloedit.png", "644"],
+    ["README.md", "usr/share/doc/veloedit/README.md", "644"],
+    ["THIRD-PARTY-LICENSES.txt", "usr/share/doc/veloedit/THIRD-PARTY-LICENSES.txt", "644"],
+]
+
+[package.metadata.generate-rpm]
+# rpm's own dependency scanner is not on the build machine (Ubuntu): the needs are listed by hand.
+auto-req = "disabled"
+assets = [
+    { source = "target/release/veloedit", dest = "/usr/bin/veloedit", mode = "755" },
+    { source = "packaging/veloedit.desktop", dest = "/usr/share/applications/veloedit.desktop", mode = "644" },
+    { source = "assets/icon-128.png", dest = "/usr/share/icons/hicolor/128x128/apps/veloedit.png", mode = "644" },
+    { source = "assets/icon-256.png", dest = "/usr/share/icons/hicolor/256x256/apps/veloedit.png", mode = "644" },
+    { source = "README.md", dest = "/usr/share/doc/veloedit/README.md", mode = "644", doc = true },
+    { source = "LICENSE", dest = "/usr/share/licenses/veloedit/LICENSE", mode = "644" },
+    { source = "THIRD-PARTY-LICENSES.txt", dest = "/usr/share/licenses/veloedit/THIRD-PARTY-LICENSES.txt", mode = "644" },
+]
+
+[package.metadata.generate-rpm.requires]
+glibc = ">= 2.35"
+
 [profile.dev]
 opt-level = 1
 

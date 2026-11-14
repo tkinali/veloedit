@@ -192,8 +192,8 @@
   .pillars .n { color: var(--accent); font-weight: 700; font-size: .9rem; letter-spacing: .08em; }
 
   /* ---- install ---- */
-  .install { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
-  .panel { padding: 1.6rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; }
+  .install { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.2rem; }
+  .panel { min-width: 0; padding: 1.6rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; }
   .panel h3 { margin: 0 0 .7rem; color: var(--bright); font-size: 1.15rem; }
   .panel p { margin: .6rem 0; font-size: .96rem; }
   .dl { display: flex; flex-wrap: wrap; gap: .6rem; margin: .8rem 0 1rem; }
@@ -211,6 +211,11 @@
   pre button:hover { color: #fff; border-color: var(--accent); }
   .req { margin: .4rem 0 0; padding-left: 1.1rem; font-size: .93rem; color: var(--text); }
   .panel.wide { grid-column: 1 / -1; }
+  .fmts { margin: .6rem 0 1rem; border-top: 1px solid var(--border); }
+  .fmt { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .55rem 0; border-bottom: 1px solid var(--border); }
+  .fmt-name { flex: 1 1 11rem; font-size: .95rem; }
+  .fmt-name b { color: var(--bright); margin-right: .35rem; }
+  .fmt .btn { padding: .4rem .85rem; font-size: .88rem; }
   .req li { margin: .25rem 0; }
 
   /* ---- shortcuts ---- */
@@ -230,7 +235,7 @@
     .cards, .grid, .pillars { grid-template-columns: repeat(2, 1fr); }
     .show, .show.flip { grid-template-columns: 1fr; gap: 1.6rem; }
     .show.flip .copy { order: 0; }
-    .install { grid-template-columns: 1fr; }
+    .install { grid-template-columns: minmax(0, 1fr); }
     .facts { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 640px) {
@@ -499,22 +504,33 @@
   <div class="wrap">
     <div class="center">
       <h2><span class="t" lang="en">Install in a minute</span><span class="t" lang="tr">Bir dakikada kur</span></h2>
-      <p class="sub"><span class="t" lang="en">Latest release: <b data-version>see Releases</b>. On Linux it installs into your home folder and adds itself to the application menu and to "Open with"; on Windows it is a zip you unpack anywhere.</span><span class="t" lang="tr">Son sürüm: <b data-version>Sürümler'e bak</b>. Linux'ta ev dizinine kurulur, uygulama menüsüne ve "Birlikte aç"a eklenir; Windows'ta istediğin yere açtığın bir zip'tir.</span></p>
+      <p class="sub"><span class="t" lang="en">Latest release: <b data-version>see Releases</b>. On Linux you get a .deb, .rpm, AppImage or tarball that adds itself to the application menu and to "Open with"; on Windows it is a zip you unpack anywhere.</span><span class="t" lang="tr">Son sürüm: <b data-version>Sürümler'e bak</b>. Linux'ta .deb, .rpm, AppImage ya da tarball alırsın; uygulama menüsüne ve "Birlikte aç"a eklenir. Windows'ta istediğin yere açtığın bir zip'tir.</span></p>
     </div>
 
     <div class="install">
       <div class="panel">
-        <h3><span class="t" lang="en">Prebuilt (recommended)</span><span class="t" lang="tr">Hazır paket (önerilen)</span></h3>
-        <p><span class="t" lang="en">Download the archive for your processor:</span><span class="t" lang="tr">İşlemcine uygun arşivi indir:</span></p>
-        <div class="dl">
-          <a class="btn primary" data-asset="x86_64" href="https://github.com/tkinali/veloedit/releases/latest">x86_64 (Intel / AMD)</a>
-          <a class="btn" data-asset="aarch64" href="https://github.com/tkinali/veloedit/releases/latest">aarch64 (ARM)</a>
+        <h3><span class="t" lang="en">Linux · prebuilt (recommended)</span><span class="t" lang="tr">Linux · hazır paket (önerilen)</span></h3>
+        <p><span class="t" lang="en">Pick the file for your system and processor:</span><span class="t" lang="tr">Sistemine ve işlemcine uygun dosyayı seç:</span></p>
+        <div class="fmts">
+          <div class="fmt"><span class="fmt-name"><b>.deb</b> <span class="small">Debian · Ubuntu · Mint</span></span>
+            <a class="btn" data-asset="deb-x86_64" href="https://github.com/tkinali/veloedit/releases/latest">x86_64</a>
+            <a class="btn" data-asset="deb-aarch64" href="https://github.com/tkinali/veloedit/releases/latest">aarch64</a></div>
+          <div class="fmt"><span class="fmt-name"><b>.rpm</b> <span class="small">Fedora · openSUSE · RHEL</span></span>
+            <a class="btn" data-asset="rpm-x86_64" href="https://github.com/tkinali/veloedit/releases/latest">x86_64</a>
+            <a class="btn" data-asset="rpm-aarch64" href="https://github.com/tkinali/veloedit/releases/latest">aarch64</a></div>
+          <div class="fmt"><span class="fmt-name"><b>AppImage</b> <span class="small"><span class="t" lang="en">any distribution</span><span class="t" lang="tr">her dağıtım</span></span></span>
+            <a class="btn" data-asset="appimage-x86_64" href="https://github.com/tkinali/veloedit/releases/latest">x86_64</a>
+            <a class="btn" data-asset="appimage-aarch64" href="https://github.com/tkinali/veloedit/releases/latest">aarch64</a></div>
+          <div class="fmt"><span class="fmt-name"><b>.tar.gz</b> <span class="small"><span class="t" lang="en">any distribution, no root</span><span class="t" lang="tr">her dağıtım, root gerekmez</span></span></span>
+            <a class="btn" data-asset="tar-x86_64" href="https://github.com/tkinali/veloedit/releases/latest">x86_64</a>
+            <a class="btn" data-asset="tar-aarch64" href="https://github.com/tkinali/veloedit/releases/latest">aarch64</a></div>
         </div>
-        <p><span class="t" lang="en">Then unpack and install:</span><span class="t" lang="tr">Sonra aç ve kur:</span></p>
-        <pre><code>tar xzf veloedit-*-linux.tar.gz
-cd veloedit-*-linux
-./install.sh   <span class="c"># into ~/.local, no root needed</span></code></pre>
-        <p><span class="t" lang="en">Start it from the application menu, or run <code>veloedit</code> in a terminal. <code>./install.sh --uninstall</code> removes it again; your settings are kept.</span><span class="t" lang="tr">Uygulama menüsünden başlat ya da terminalde <code>veloedit</code> yaz. <code>./install.sh --uninstall</code> kaldırır; ayarların korunur.</span></p>
+        <p><span class="t" lang="en">Then install it:</span><span class="t" lang="tr">Sonra kur:</span></p>
+        <pre><code>sudo apt install ./veloedit_*.deb                  <span class="c"># Debian, Ubuntu, Mint</span>
+sudo dnf install ./veloedit-*.rpm                  <span class="c"># Fedora (openSUSE: zypper install)</span>
+chmod +x VeloEdit-*.AppImage &amp;&amp; ./VeloEdit-*.AppImage
+tar xzf veloedit-*-linux.tar.gz &amp;&amp; cd veloedit-*-linux &amp;&amp; ./install.sh</code></pre>
+        <p><span class="t" lang="en">Start it from the application menu, or run <code>veloedit</code> in a terminal. The AppImage needs FUSE (<code>sudo apt install libfuse2</code> on Ubuntu 22.04+). Remove it with <code>sudo apt remove veloedit</code> / <code>sudo dnf remove veloedit</code>, or <code>./install.sh --uninstall</code> for the tarball; your settings are kept.</span><span class="t" lang="tr">Uygulama menüsünden başlat ya da terminalde <code>veloedit</code> yaz. AppImage için FUSE gerekir (Ubuntu 22.04+: <code>sudo apt install libfuse2</code>). Kaldırmak için <code>sudo apt remove veloedit</code> / <code>sudo dnf remove veloedit</code>, tarball için <code>./install.sh --uninstall</code>; ayarların korunur.</span></p>
       </div>
 
       <div class="panel">
@@ -644,8 +660,14 @@ packaging/install.sh</code></pre>
           if (!rel || !rel.tag_name) return;
           document.querySelectorAll("[data-version]").forEach(function (el) { el.textContent = rel.tag_name; });
           (rel.assets || []).forEach(function (a) {
-            var linux = /-(x86_64|aarch64)-linux\.tar\.gz$/.exec(a.name);
-            var key = linux ? linux[1] : (/-x86_64-windows\.zip$/.test(a.name) ? "windows" : null);
+            // asset name -> button key: tar-x86_64, deb-aarch64, rpm-x86_64, appimage-x86_64, windows ...
+            var arch = { amd64: "x86_64", arm64: "aarch64" };
+            var m, key = null;
+            if ((m = /-(x86_64|aarch64)-linux\.tar\.gz$/.exec(a.name))) key = "tar-" + m[1];
+            else if ((m = /_(amd64|arm64)\.deb$/.exec(a.name))) key = "deb-" + arch[m[1]];
+            else if ((m = /\.(x86_64|aarch64)\.rpm$/.exec(a.name))) key = "rpm-" + m[1];
+            else if ((m = /-(x86_64|aarch64)\.AppImage$/.exec(a.name))) key = "appimage-" + m[1];
+            else if (/-x86_64-windows\.zip$/.test(a.name)) key = "windows";
             if (!key) return;
             document.querySelectorAll('[data-asset="' + key + '"]').forEach(function (el) { el.href = a.browser_download_url; });
           });

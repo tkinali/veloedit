@@ -48,7 +48,9 @@ fn shot(app: &App, name: &str) {
 
 fn scratch() -> PathBuf {
     static INIT: Once = Once::new();
-    let dir = std::env::temp_dir().join(format!("veloedit-ui-test-{}", std::process::id()));
+    // The canonical temp dir: the app canonicalizes the folders it is given, and on a Windows
+    // CI runner the plain one is an 8.3 short name ("RUNNER~1") that never equals the long one.
+    let dir = crate::fsx::canonical(&std::env::temp_dir()).join(format!("veloedit-ui-test-{}", std::process::id()));
     INIT.call_once(|| {
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(dir.join("state")).unwrap();

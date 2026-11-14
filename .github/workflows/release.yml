@@ -1,5 +1,5 @@
-# Push a tag like v0.2.0 -> builds the Linux tarballs and the Windows zip and publishes them
-# as a GitHub release, with the notes taken from CHANGELOG.md. See RELEASING.md.
+# Push a tag like v0.2.0 -> builds the Linux tarballs, .deb, .rpm and .AppImage files and the
+# Windows zip and publishes them as a GitHub release, with the notes taken from CHANGELOG.md. See RELEASING.md.
 #
 # "Run workflow" in the Actions tab does a dry run: it builds everything and keeps the files
 # as downloadable artifacts of the run, but publishes nothing.
@@ -44,10 +44,22 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: scripts/package.sh
+      - name: Packages (.deb, .rpm, .AppImage)
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends desktop-file-utils file
+          cargo install cargo-deb --version 3.8.0 --locked
+          cargo install cargo-generate-rpm --version 0.21.1 --locked
+          scripts/package-deb.sh
+          scripts/package-rpm.sh
+          scripts/package-appimage.sh
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ matrix.os }}
-          path: dist/*.tar.gz*
+          path: |
+            dist/*.tar.gz*
+            dist/*.deb*
+            dist/*.rpm*
+            dist/*.AppImage*
 
   build-windows:
     needs: check

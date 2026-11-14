@@ -1,7 +1,7 @@
 # Sürüm çıkarma rehberi
 
 Yeni bir sürüm çıkarmak, bir **etiket (tag) göndermek** demektir. Gerisini GitHub Actions yapar:
-Linux için iki işlemci mimarisinde (x86_64, aarch64) tarball, Windows için (x86_64) zip derler;
+Linux için iki işlemci mimarisinde (x86_64, aarch64) tarball, `.deb`, `.rpm` ve `.AppImage`, Windows için (x86_64) zip derler;
 paketleri ve sağlama dosyalarını (`.sha256`) bir **GitHub Release** olarak yayınlar, açıklama
 metnini `CHANGELOG.md`'den alır. Web sitesi
 (<https://tkinali.github.io/veloedit/>) en son sürümü ve indirme bağlantılarını GitHub'dan kendisi
@@ -49,7 +49,9 @@ okur; siteye dokunmana gerek yok.
 6. **Actions → Release** çalışmasını izle (yaklaşık 10-15 dakika; ilk seferde Rust önbelleği boş olduğu
    için daha uzun sürebilir). Bitince **Releases** sayfasında `v0.2.0` görünür:
    `veloedit-0.2.0-x86_64-linux.tar.gz`, `veloedit-0.2.0-aarch64-linux.tar.gz`,
-   `veloedit-0.2.0-x86_64-windows.zip` ve her birinin `.sha256` dosyası.
+   `veloedit_0.2.0-1_amd64.deb`, `veloedit_0.2.0-1_arm64.deb`, `veloedit-0.2.0-1.x86_64.rpm`,
+   `veloedit-0.2.0-1.aarch64.rpm`, `VeloEdit-0.2.0-x86_64.AppImage`, `VeloEdit-0.2.0-aarch64.AppImage`,
+   `veloedit-0.2.0-x86_64-windows.zip` ve her birinin `.sha256` dosyası (toplam 9 paket, 18 dosya).
 7. **Kontrol et**: Linux paketini indirip kur (`tar xzf ... && ./install.sh`), `veloedit --version` doğru
    numarayı yazsın. Windows zip'ini bir Windows bilgisayarda aç, `veloedit.exe` açılsın ve **Help → About**'ta
    sürüm doğru görünsün (Windows'ta `--version` konsola yazmaz, çünkü program konsolsuz bir GUI programıdır). Web sitesindeki "Son sürüm" birkaç dakika içinde güncellenir.
