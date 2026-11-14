@@ -112,6 +112,11 @@ assets = [
 [package.metadata.generate-rpm.requires]
 glibc = ">= 2.35"
 
+# tree-sitter-scss 1.0.0 cannot be built with MSVC (its build script passes a GCC-only flag):
+# a copy with that one line fixed, see vendor/tree-sitter-scss/README.md.
+[patch.crates-io]
+tree-sitter-scss = { path = "vendor/tree-sitter-scss" }
+
 [profile.dev]
 opt-level = 1
 

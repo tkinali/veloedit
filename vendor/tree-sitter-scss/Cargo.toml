@@ -1,0 +1,19 @@
+[package]
+name = "tree-sitter-scss"
+version = "1.0.0"
+edition = "2021"
+authors = ["Amaan Qureshi <amaanq12@gmail.com>"]
+build = "bindings/rust/build.rs"
+autoexamples = false
+description = "SCSS grammar for tree-sitter (VeloEdit's copy: builds with MSVC, see README.md)"
+license = "MIT"
+repository = "https://github.com/tree-sitter-grammars/tree-sitter-scss"
+
+[lib]
+path = "bindings/rust/lib.rs"
+
+[dependencies.tree-sitter]
+version = ">=0.21.0"
+
+[build-dependencies.cc]
+version = "1.0.92"
