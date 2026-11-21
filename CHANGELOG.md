@@ -3,7 +3,7 @@
 Every release has a section here; its text becomes the release notes on GitHub
 (see [RELEASING.md](RELEASING.md)). Newest first.
 
-## Unreleased
+## 0.1.2 - 2026-11-21
 
 ### Fixed
 - In a split tab, a pane's name bar with a long file name (or a long first line, for an unsaved
