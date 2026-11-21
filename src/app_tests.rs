@@ -2628,3 +2628,89 @@ fn a_draft_comes_back_even_when_its_file_sits_on_a_mount_that_never_answers() {
     }
     fs::remove_file(drafts.join("draft-4242.txt")).ok();
 }
+
+/// Where (x, in 2 px steps) a click on the name bar of `pane` closes it, looking between `left`
+/// and `right`: the bar's row is found first (the first row a click focuses the pane from).
+fn close_xs(app: &App, id: crate::editor::TabId, pane: crate::editor::Pane, left: f32, right: f32) -> Vec<f32> {
+    let row = (TOP as i32..760)
+        .step_by(2)
+        .find(|&y| {
+            messages(app, |ui| {
+                ui.point_at(iced::Point::new(left + 20.0, y as f32));
+                ui.simulate(iced_test::simulator::click());
+            })
+            .iter()
+            .any(|m| matches!(m, Message::FocusPane(i, p) if *i == id && *p == pane))
+        })
+        .expect("the pane has a name bar");
+    // The bar is 26 px high and its × sits in the middle of it.
+    let y = row as f32 + 12.0;
+    let mut hits = vec![];
+    let mut x = left;
+    while x < right {
+        let msgs = messages(app, |ui| {
+            ui.point_at(iced::Point::new(x, y));
+            ui.simulate(iced_test::simulator::click());
+        });
+        if msgs.iter().any(|m| matches!(m, Message::ClosePane(i, p) if *i == id && *p == pane)) {
+            hits.push(x);
+        }
+        x += 2.0;
+    }
+    hits
+}
+
+#[test]
+fn a_long_name_never_pushes_the_close_button_of_a_pane_out_of_its_name_bar() {
+    use crate::editor::{Pane, SPLIT_MIN, SplitDir};
+    let _turn = session_lock();
+    let root = project().join("long-names");
+    fs::create_dir_all(&root).unwrap();
+    let area_left = sidebar::DEFAULT_WIDTH + 5.0;
+    let total = 1024.0 - area_left;
+
+    // A saved file with a long name, and an unsaved text whose first line is long (its tab is
+    // named after it); both clean and changed.
+    let file = root.join("adim12-yeniden-baslatma-21kasim.txt");
+    fs::write(&file, (0..300).map(|i| format!("row {i}\n")).collect::<String>()).unwrap();
+    let mut app = booted(vec![]);
+    open(&mut app, &file);
+    let saved = app.tabs.active_id().unwrap();
+    drop(app.update(Message::NewFile));
+    let unsaved = app.tabs.active_id().unwrap();
+    drop(app.update(Message::Editor(unsaved, Action::Insert("tskey-auth-kX98tCo4tm11CNTRL-aBcDeFgHiJkLmNoPqRsTuVwXyZ\nsecond line\n".into()))));
+    assert!(app.tabs.get(unsaved).unwrap().is_dirty());
+
+    for (id, changed) in [(saved, false), (saved, true), (unsaved, true)] {
+        drop(app.update(Message::ActivateTab(id)));
+        if changed && id == saved {
+            drop(app.update(Message::Editor(id, Action::Insert("x".into()))));
+        }
+        let tag = format!("{} changed={changed}", app.tabs.get(id).unwrap().label(crate::editor::TAB_LABEL));
+
+        // One above the other: each pane has the whole width.
+        drop(app.update(Message::SplitTab(id, SplitDir::Down)));
+        for pane in [Pane::First, Pane::Second] {
+            let hits = close_xs(&app, id, pane, area_left, 1024.0);
+            assert!(!hits.is_empty(), "{tag}: the × of the {pane:?} pane (Down) cannot be clicked");
+            // It sits inside the name bar's chip, near its right end, not off in the corner.
+            assert!(hits.iter().all(|x| *x < area_left + 430.0), "{tag}: {hits:?}");
+        }
+        drop(app.update(Message::ClosePane(id, Pane::Second)));
+
+        // Side by side with the first pane as narrow as it gets: the chip squeezes to the pane.
+        drop(app.update(Message::SplitTab(id, SplitDir::Right)));
+        app.tabs.get_mut(id).unwrap().split.as_mut().unwrap().frac = SPLIT_MIN;
+        drop(messages(&app, |_| {}));
+        let first_right = area_left + (total - 5.0) * SPLIT_MIN;
+        let hits = close_xs(&app, id, Pane::First, area_left, first_right);
+        assert!(!hits.is_empty(), "{tag}: the × of a narrow first pane cannot be clicked");
+        if id == unsaved {
+            shot(&app, "split-long-name-narrow");
+        }
+        let second_left = first_right + 5.0;
+        let hits = close_xs(&app, id, Pane::Second, second_left, 1024.0);
+        assert!(!hits.is_empty(), "{tag}: the × of the second pane (Right) cannot be clicked");
+        drop(app.update(Message::ClosePane(id, Pane::Second)));
+    }
+}

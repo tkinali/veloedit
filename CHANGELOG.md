@@ -3,6 +3,13 @@
 Every release has a section here; its text becomes the release notes on GitHub
 (see [RELEASING.md](RELEASING.md)). Newest first.
 
+## Unreleased
+
+### Fixed
+- In a split tab, a pane's name bar with a long file name (or a long first line, for an unsaved
+  text) no longer pushes its **×** and its unsaved-changes dot out of sight and out of reach: the
+  name is cut instead, also in a very narrow pane.
+
 ## 0.1.1 - 2026-11-14
 
 ### Added

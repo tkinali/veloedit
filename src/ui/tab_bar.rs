@@ -189,37 +189,44 @@ pub const PANE_HEADER_H: f32 = 26.0;
 /// The name bar of one pane of a split tab (like an editor group's tab in VS Code): the
 /// file's name, a dirty mark, and a × that closes the pane. The focused pane's is lit.
 pub fn pane_header(c: C, t: &Tab, pane: Pane, focused: bool) -> Element<'_, Message> {
-    let mut name = Row::new().spacing(6).align_y(Alignment::Center).push(
-        text(t.label(TAB_LABEL).into_owned())
-            .size(theme::FONT_SIZE)
-            .wrapping(Wrapping::None)
-            .color(if focused { c.text_bright } else { c.dim }),
-    );
+    let name = text(t.label(TAB_LABEL).into_owned())
+        .size(theme::FONT_SIZE)
+        .wrapping(Wrapping::None)
+        .color(if focused { c.text_bright } else { c.dim });
+    // The name is the one part that gives way: iced lays out the `Fill` child last, so the dirty
+    // mark and the × always get their room and a long name is cut. (With a name of its own
+    // width in front of them they were left with no width at all: invisible and unclickable.)
+    let mut bar = Row::new()
+        .spacing(2)
+        .align_y(Alignment::Center)
+        .height(Length::Fill)
+        .push(container(name).padding([0, 10]).width(Length::Fill).clip(true));
     if t.is_dirty() {
-        name = name.push(text("\u{25CF}").size(10).color(c.dirty));
+        bar = bar.push(text("\u{25CF}").size(10).color(c.dirty));
     }
-    let close = button(text("\u{00D7}").size(15).color(c.dim))
-        .padding([0, 6])
-        .style(theme::flat(c, false))
-        .on_press(Message::ClosePane(t.id, pane));
+    bar = bar.push(
+        button(text("\u{00D7}").size(15).color(c.dim))
+            .padding([0, 6])
+            .style(theme::flat(c, false))
+            .on_press(Message::ClosePane(t.id, pane)),
+    );
     let accent = container(space().height(2.0))
         .width(Length::Fill)
         .style(theme::panel(c, if focused { c.accent } else { iced::Color::TRANSPARENT }));
-    let chip = container(row![container(name).padding([0, 10]), close].align_y(Alignment::Center).height(Length::Fill))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .style(move |_| container::Style {
-            background: Some(Background::Color(if focused { c.bg } else { c.tabbar })),
-            ..container::Style::default()
-        });
-    let chip = column![accent, chip].width(tab_width(t).max(MIN_W + 20.0));
-    mouse_area(
-        container(row![chip, space::horizontal()])
-            .width(Length::Fill)
-            .height(PANE_HEADER_H)
-            .style(theme::panel(c, c.tabbar)),
-    )
-    .on_press(Message::FocusPane(t.id, pane))
-    .on_right_press(Message::TabContext(t.id))
-    .into()
+    let chip = container(bar).width(Length::Fill).height(Length::Fill).style(move |_| container::Style {
+        background: Some(Background::Color(if focused { c.bg } else { c.tabbar })),
+        ..container::Style::default()
+    });
+    // As wide as its content wants, but never wider than the pane (a narrow pane squeezes the
+    // chip instead of pushing the × out of it).
+    let chip = column![accent, chip].width(Length::Fill).max_width(chip_width(t));
+    mouse_area(container(chip).width(Length::Fill).height(PANE_HEADER_H).style(theme::panel(c, c.tabbar)))
+        .on_press(Message::FocusPane(t.id, pane))
+        .on_right_press(Message::TabContext(t.id))
+        .into()
+}
+
+/// The width a pane header's name chip aims for: the name, the dirty mark and the ×.
+fn chip_width(t: &Tab) -> f32 {
+    (t.label(TAB_LABEL).chars().count() as f32 * 7.4 + 64.0).clamp(MIN_W + 20.0, 420.0)
 }

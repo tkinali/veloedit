@@ -30,10 +30,22 @@ use iced::futures::{
 };
 
 /// How long the UI thread waits for the answer to one filesystem question.
+#[cfg(not(test))]
 const PROBE: Duration = Duration::from_millis(300);
 /// Questions that have not come back yet. Past this many, nobody is asked any more (the
 /// filesystem is evidently stuck) instead of piling up one blocked thread per click.
+#[cfg(not(test))]
 const MAX_IN_FLIGHT: usize = 8;
+
+// The tests of one process share the gate below and run a couple of hundred threads at once
+// (and one of them leaves a probe hanging for good on purpose). With the real limits an
+// unlucky moment answered "unknown" for an ordinary folder, which a test then took for "no
+// such folder" - an occasional failure in whichever test happened to boot with a folder
+// argument. The behaviour of the limits is tested with gates and deadlines of their own.
+#[cfg(test)]
+const PROBE: Duration = Duration::from_secs(10);
+#[cfg(test)]
+const MAX_IN_FLIGHT: usize = 1 << 16;
 
 /// The questions of the whole process that have not been answered yet.
 fn in_flight() -> &'static Arc<AtomicUsize> {
