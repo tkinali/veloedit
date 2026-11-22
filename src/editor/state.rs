@@ -205,6 +205,9 @@ struct Edit {
     after: SelSet,
     at: Instant,
     kind: Kind,
+    /// A change of the document's line-ending style `(before, after)`: undo and redo restore it
+    /// together with the text.
+    eol: Option<(Eol, Eol)>,
 }
 
 #[derive(Default)]
@@ -828,7 +831,7 @@ impl EditorState {
         self.fold_apply(plan);
         self.note_change(|| pieces.iter().map(|p| (p.pos, p.removed.clone(), p.inserted.clone())).collect());
         self.set_sel_set(after.clone());
-        self.record(Edit { pieces, before, after, at: now, kind });
+        self.record(Edit { pieces, before, after, at: now, kind, eol: None });
     }
 
     /// One replacement per cursor. `make(state, index, selection, lo, hi)`
@@ -923,6 +926,9 @@ impl EditorState {
         self.fold_apply(plan);
         self.note_change(|| e.pieces.iter().zip(&posts).map(|(p, &post)| (post, p.inserted.clone(), p.removed.clone())).collect());
         self.set_sel_set(e.before.clone());
+        if let Some((before, _)) = e.eol {
+            self.eol = before;
+        }
         self.reveal_cursors();
         self.history.redo.push(e);
     }
@@ -942,6 +948,9 @@ impl EditorState {
         self.fold_apply(plan);
         self.note_change(|| e.pieces.iter().map(|p| (p.pos, p.removed.clone(), p.inserted.clone())).collect());
         self.set_sel_set(e.after.clone());
+        if let Some((_, after)) = e.eol {
+            self.eol = after;
+        }
         self.reveal_cursors();
         self.history.undo.push(e);
     }
@@ -1163,6 +1172,62 @@ impl EditorState {
         n
     }
 
+    /// Rewrites the indentation of every line - the tabs and spaces it starts with - as spaces
+    /// (`to_spaces`) or as tabs (a tab per `tab_size` columns, the remainder as spaces), keeping
+    /// each line's indentation width. One undo step; the number of lines changed.
+    pub fn convert_indentation(&mut self, to_spaces: bool, now: Instant) -> usize {
+        let tab = self.tab_size.max(1);
+        let mut pieces = Vec::new();
+        for l in 0..self.line_count() {
+            let len = self.line_len(l);
+            let line = self.rope.line(l);
+            let run = (0..len).take_while(|&i| matches!(line.char(i), ' ' | '\t')).count();
+            if run == 0 {
+                continue;
+            }
+            let width = (0..run).fold(0, |col, i| col + if line.char(i) == '\t' { tab - col % tab } else { 1 });
+            let new = if to_spaces { " ".repeat(width) } else { format!("{}{}", "\t".repeat(width / tab), " ".repeat(width % tab)) };
+            if line.slice(..run).to_string() != new {
+                let start = self.line_start(l);
+                pieces.push(self.piece(start, start + run, &new));
+            }
+        }
+        let n = pieces.len();
+        let after = self.mapped_selections(&pieces);
+        self.commit(pieces, after, Kind::Other, now);
+        n
+    }
+
+    /// Makes every line end the way `eol` says (a mixed file becomes uniform) and new lines
+    /// follow it from now on. One undo step - undo brings back the old endings *and* the old
+    /// style; the number of lines changed. A text with no line break at all only gets the style.
+    pub fn set_eol(&mut self, eol: Eol, now: Instant) -> usize {
+        let before = self.eol;
+        let mut pieces = Vec::new();
+        for l in 0..self.line_count() {
+            let len = self.line_len(l);
+            let ending = self.rope.line(l).len_chars() - len;
+            let at = self.line_start(l) + len;
+            match (eol, ending) {
+                // "\r\n": drop the "\r".
+                (Eol::Lf, 2) => pieces.push(self.piece(at, at + 1, "")),
+                // "\n": put a "\r" in front of it.
+                (Eol::CrLf, 1) => pieces.push(self.piece(at, at, "\r")),
+                _ => {}
+            }
+        }
+        let n = pieces.len();
+        let after = self.selections_before_insertions(&pieces);
+        self.commit(pieces, after, Kind::Other, now);
+        if n > 0 {
+            if let Some(edit) = self.history.undo.last_mut() {
+                edit.eol = Some((before, eol));
+            }
+        }
+        self.eol = eol;
+        n
+    }
+
     /// Markdown's hard line break: text, then two or more spaces (`keep..len` of line `l`,
     /// nothing but spaces), and another line of text after it - at a paragraph's end or at
     /// the end of the file the spaces mean nothing.
@@ -1190,6 +1255,23 @@ impl EditorState {
                 let (a, b) = s.range();
                 let (na, nb) = (map_pos(pieces, a, a == b), map_pos(pieces, b, true));
                 if s.head >= s.anchor { Selection { anchor: na, head: nb } } else { Selection { anchor: nb, head: na } }
+            })
+            .collect();
+        SelSet { sels, primary: self.primary }
+    }
+
+    /// Like [`mapped_selections`](Self::mapped_selections), but nothing moves behind text that
+    /// is inserted exactly at its position. For a change of line endings: the new `\r` belongs
+    /// to the line break, so a caret at a line's end stays in front of it, never between the
+    /// `\r` and the `\n`.
+    fn selections_before_insertions(&self, pieces: &[Piece]) -> SelSet {
+        let sels = self
+            .cursors
+            .iter()
+            .map(|c| {
+                let s = c.sel;
+                let (na, nb) = (map_pos(pieces, s.anchor, false), map_pos(pieces, s.head, false));
+                Selection { anchor: na, head: nb }
             })
             .collect();
         SelSet { sels, primary: self.primary }

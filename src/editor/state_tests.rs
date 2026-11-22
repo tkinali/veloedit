@@ -1072,3 +1072,119 @@ fn replacing_the_text_is_followed_by_a_split_mirror() {
     doc.feed(&mut other);
     assert_eq!(other.text(), doc.text());
 }
+
+#[test]
+fn converting_indentation_keeps_each_lines_width_and_is_one_undo_step() {
+    let now = Instant::now();
+    // Tab size 4 (the default): a tab is up to the next multiple of 4 columns.
+    let mut s = st("\tone\n  \ttwo\n        three\n      four\n   five\nsix\n  \n");
+    let original = s.text();
+    // To spaces: every tab becomes the spaces that reach the same column.
+    assert_eq!(s.convert_indentation(true, now), 2);
+    assert_eq!(s.text(), "    one\n    two\n        three\n      four\n   five\nsix\n  \n");
+    s.apply(Action::Undo, now);
+    assert_eq!(s.text(), original, "one undo brings every line back");
+    assert!(!s.is_dirty());
+
+    // To tabs: a tab per 4 columns, the rest stays spaces; nothing inside a line is touched.
+    let mut s = st("    one\n      two\n   three\n\t  four\nspaces    inside\n");
+    assert_eq!(s.convert_indentation(false, now), 2);
+    assert_eq!(s.text(), "\tone\n\t  two\n   three\n\t  four\nspaces    inside\n");
+    assert_eq!(s.convert_indentation(false, now), 0, "nothing left to convert");
+
+    // Another tab size changes what a tab is worth.
+    let mut s = st("\tone\n    two\n");
+    s.set_tab_size(2);
+    assert_eq!(s.convert_indentation(true, now), 1);
+    assert_eq!(s.text(), "  one\n    two\n");
+    s.set_tab_size(8);
+    assert_eq!(s.convert_indentation(false, now), 0, "two and four columns are not a tab at width 8");
+    assert_eq!(s.text(), "  one\n    two\n");
+    s.set_tab_size(2);
+    assert_eq!(s.convert_indentation(false, now), 2, "at width 2 they are one and two tabs");
+    assert_eq!(s.text(), "\tone\n\t\ttwo\n");
+}
+
+#[test]
+fn converting_indentation_moves_carets_with_the_text() {
+    let now = Instant::now();
+    let mut s = st("\t\tx\nplain\n");
+    s.set_selection(Selection::caret(3)); // right behind the x
+    s.convert_indentation(true, now);
+    assert_eq!(s.text(), "        x\nplain\n");
+    assert_eq!(s.selection(), Selection::caret(9), "still right behind the x");
+}
+
+#[test]
+fn line_endings_can_be_converted_both_ways_and_undo_restores_the_style_too() {
+    let now = Instant::now();
+    let mut s = st("a\nb\n\nc");
+    assert_eq!(s.eol(), Eol::Lf);
+    assert_eq!(s.set_eol(Eol::CrLf, now), 3, "the last line has no ending");
+    assert_eq!(s.text(), "a\r\nb\r\n\r\nc");
+    assert_eq!(s.eol(), Eol::CrLf);
+    // New lines follow the new style.
+    s.set_selection(Selection::caret(s.len_chars()));
+    ins(&mut s, "\nd", now + Duration::from_secs(5));
+    assert_eq!(s.text(), "a\r\nb\r\n\r\nc\r\nd");
+    s.apply(Action::Undo, now);
+    s.apply(Action::Undo, now);
+    assert_eq!(s.text(), "a\nb\n\nc", "undo restores the text...");
+    assert_eq!(s.eol(), Eol::Lf, "...and the style");
+    s.apply(Action::Redo, now);
+    assert_eq!((s.text().as_str(), s.eol()), ("a\r\nb\r\n\r\nc", Eol::CrLf));
+
+    // Back to LF; a mixed file becomes uniform either way.
+    assert_eq!(s.set_eol(Eol::Lf, now), 3);
+    assert_eq!(s.text(), "a\nb\n\nc");
+    let mut mixed = st("a\r\nb\nc\r\nd\n");
+    assert_eq!(mixed.set_eol(Eol::Lf, now), 2);
+    assert_eq!(mixed.text(), "a\nb\nc\nd\n");
+    let mut mixed = st("a\r\nb\nc\r\nd\n");
+    assert_eq!(mixed.set_eol(Eol::CrLf, now), 2);
+    assert_eq!(mixed.text(), "a\r\nb\r\nc\r\nd\r\n");
+}
+
+#[test]
+fn a_line_ending_that_is_already_right_changes_nothing() {
+    let now = Instant::now();
+    let mut s = st("a\r\nb\r\n");
+    let version = s.version();
+    assert_eq!(s.set_eol(Eol::CrLf, now), 0);
+    assert_eq!((s.version(), s.is_dirty()), (version, false), "no edit, nothing to save");
+    // A text without any line break only takes the style (the next Enter uses it).
+    let mut one = st("single line");
+    assert_eq!(one.set_eol(Eol::CrLf, now), 0);
+    assert_eq!(one.eol(), Eol::CrLf);
+    assert!(!one.is_dirty());
+    one.set_selection(Selection::caret(11));
+    ins(&mut one, "\nnext", now);
+    assert_eq!(one.text(), "single line\r\nnext");
+}
+
+#[test]
+fn converting_line_endings_keeps_carets_and_a_split_mirror_in_step() {
+    let now = Instant::now();
+    let mut s = st("one\ntwo\nthree");
+    s.set_selection(Selection { anchor: 4, head: 7 }); // "two"
+    s.set_eol(Eol::CrLf, now);
+    assert_eq!(s.text(), "one\r\ntwo\r\nthree");
+    assert_eq!(s.selected_text().as_deref(), Some("two"), "the selection still covers the same word");
+    // A caret at a line's end stays in front of the whole line break, never between \r and \n.
+    let mut c = st("ab\ncd");
+    c.set_selection(Selection::caret(2));
+    c.set_eol(Eol::CrLf, now);
+    assert_eq!(c.selection(), Selection::caret(2));
+    ins(&mut c, "X", now);
+    assert_eq!(c.text(), "abX\r\ncd");
+    // ...and the way back.
+    c.set_eol(Eol::Lf, now);
+    assert_eq!((c.text().as_str(), c.selection()), ("abX\ncd", Selection::caret(3)));
+
+    // The second pane of a split follows the text and the style.
+    let mut mirror = st("one\ntwo\nthree");
+    let changes = s.take_changes();
+    mirror.follow(&s, changes);
+    assert_eq!(mirror.text(), s.text());
+    assert_eq!(mirror.eol(), Eol::CrLf);
+}

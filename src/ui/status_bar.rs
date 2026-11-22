@@ -2,7 +2,7 @@
 
 use iced::{
     Alignment, Element, Length,
-    widget::{container, row, space, text},
+    widget::{button, container, row, space, text},
 };
 
 use super::theme::{self, C};
@@ -12,15 +12,17 @@ use crate::{
 };
 
 pub fn view<'a>(c: C, active: Option<&Tab>, notice: Option<&'a str>) -> Element<'a, Message> {
+    // The language of a text is a button: it opens the list to change it (View > Syntax).
+    let mut language = None;
     let left = match active.map(|t| &t.doc) {
         Some(Doc::Text(d)) => {
             let (line, col) = d.caret();
             let n = d.state.line_count();
+            language = Some(d.hl.lang.map_or("Plain Text", |l| l.name()));
             format!(
-                "Ln {line}, Col {col}  \u{00B7}  {n} line{}  \u{00B7}  UTF-8  \u{00B7}  {}  \u{00B7}  {}",
+                "Ln {line}, Col {col}  \u{00B7}  {n} line{}  \u{00B7}  UTF-8  \u{00B7}  {}  \u{00B7}",
                 if n == 1 { "" } else { "s" },
                 d.state.eol().name(),
-                d.hl.lang.map_or("Plain Text", |l| l.name())
             )
         }
         Some(Doc::Hex(d)) => format!(
@@ -47,6 +49,16 @@ pub fn view<'a>(c: C, active: Option<&Tab>, notice: Option<&'a str>) -> Element<
     container(
         row![
             text(left).size(12).color(c.dim),
+            language.map_or_else(
+                || Element::from(space()),
+                |name| {
+                    button(text(name).size(12).color(c.dim))
+                        .padding([0, 6])
+                        .style(theme::flat(c, false))
+                        .on_press(Message::OpenSyntaxPicker)
+                        .into()
+                },
+            ),
             space::horizontal(),
             text(notice.unwrap_or("")).size(12).color(c.dirty),
         ]

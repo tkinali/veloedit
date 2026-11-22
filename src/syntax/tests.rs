@@ -333,3 +333,58 @@ fn detection_knows_copies_config_files_and_what_files_say_about_themselves() {
     assert_eq!(w("site.conf", "server {\n  listen 80;\n  location / { proxy_pass http://x; }\n}\n").map(Lang::name), Some("Nginx"));
     assert_eq!(w("my.conf", "[main]\nkey = value\n"), Some(Lang::Ini));
 }
+
+#[test]
+fn a_text_without_a_name_is_recognized_by_what_it_starts_with() {
+    use super::detect_content as d;
+    // A page copied from a browser: doctype, or a comment first, or no doctype at all.
+    assert_eq!(d("<!DOCTYPE html>\n<html lang=\"tr\">\n<head>"), Some(Lang::Html));
+    assert_eq!(d("\n\n  <!doctype HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">"), Some(Lang::Html));
+    assert_eq!(d("<html>\n<body>"), Some(Lang::Html));
+    assert_eq!(d("<head>\n<title>x</title>"), Some(Lang::Html));
+    assert_eq!(d("<!-- saved from url=(0022)https://example.com/ -->\n<!DOCTYPE html>\n<html>"), Some(Lang::Html));
+    assert_eq!(d("<!-- a -->\n<!-- b -->\n<html>"), Some(Lang::Html));
+    assert_eq!(d("<!-- never closed\n<html>"), None, "an unterminated comment says nothing");
+    // Other documents.
+    assert_eq!(d("<?xml version=\"1.0\"?>\n<a/>"), Some(Lang::Xml));
+    assert_eq!(d("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\"/>"), Some(Lang::Xml));
+    assert_eq!(d("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"x\">"), Some(Lang::Xml));
+    assert_eq!(d("<?php\necho 1;"), Some(Lang::Php));
+    assert_eq!(d("#!/usr/bin/env python3\nprint(1)"), Some(Lang::Python));
+    // Ordinary words and markup that is not a page say nothing.
+    assert_eq!(d("just some words"), None);
+    assert_eq!(d(""), None);
+    assert_eq!(d("<div>a fragment</div>"), None);
+    assert_eq!(d("a < b and c > d"), None);
+}
+
+#[test]
+fn looking_at_the_start_of_a_text_never_cuts_a_character_in_two() {
+    // Every offset: the 64-byte window must land on a character boundary whatever precedes it.
+    let word = "şğüıöç İĞÜŞÖÇ 日本語のテキスト ";
+    for pad in 0..16 {
+        let text = format!("{}{}", "a".repeat(pad), word.repeat(12));
+        assert_eq!(super::detect_content(&text), None);
+        assert_eq!(Lang::detect_with(Path::new("README"), &text), None);
+    }
+    let page = format!("<!DOCTYPE html>{}", word.repeat(30));
+    assert_eq!(super::detect_content(&page), Some(Lang::Html));
+}
+
+#[test]
+fn the_syntax_list_has_every_language_once_and_starts_with_the_two_special_choices() {
+    let all = super::Syntax::all();
+    assert_eq!(&all[..2], &[super::Syntax::Auto, super::Syntax::Plain]);
+    let langs = Lang::pickable();
+    assert!(!langs.contains(&Lang::MarkdownInline), "inline Markdown is not a language of its own");
+    assert!(langs.contains(&Lang::Html) && langs.contains(&Lang::Apache), "grammars and painters");
+    assert!(langs.len() >= Lang::GRAMMARS.len() - 1 + lexer::SPECS.len() - 1, "{}", langs.len());
+    // The table-driven languages are in it too, by name, in alphabetical order, none twice.
+    assert!(langs.iter().any(|l| l.name() == "Kotlin"));
+    let names: Vec<String> = langs.iter().map(|l| l.name().to_lowercase()).collect();
+    assert!(names.windows(2).all(|w| w[0] <= w[1]), "sorted: {names:?}");
+    let mut unique = langs.clone();
+    unique.dedup();
+    assert_eq!(unique.len(), langs.len());
+    assert_eq!(all.len(), langs.len() + 2);
+}

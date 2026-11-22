@@ -12,7 +12,7 @@ use nucleo_matcher::{
     pattern::{CaseMatching, Normalization, Pattern},
 };
 
-use crate::ui::theme;
+use crate::{editor::state::Eol, syntax::Syntax, ui::theme};
 
 /// Rows shown at once.
 pub const VISIBLE: usize = 12;
@@ -66,6 +66,12 @@ pub enum Command {
     FindNext,
     FindPrev,
     SetTheme(&'static str),
+    /// Opens the palette on the list of languages.
+    PickSyntax,
+    SetSyntax(Syntax),
+    ConvertIndentToSpaces,
+    ConvertIndentToTabs,
+    SetLineEnding(Eol),
 }
 
 impl Command {
@@ -105,9 +111,20 @@ impl Command {
             Command::SettingsPanel,
             Command::OpenSettings,
             Command::RefreshGit,
+            Command::PickSyntax,
+            Command::ConvertIndentToSpaces,
+            Command::ConvertIndentToTabs,
+            Command::SetLineEnding(Eol::Lf),
+            Command::SetLineEnding(Eol::CrLf),
         ];
         v.extend(theme::ALL.iter().map(|c| Command::SetTheme(c.name)));
+        v.extend(Syntax::all().into_iter().map(Command::SetSyntax));
         v
+    }
+
+    /// One of the "Syntax: ..." entries (listed only when asked for, there are dozens).
+    pub fn is_syntax(self) -> bool {
+        matches!(self, Command::SetSyntax(_))
     }
 
     pub fn title(self) -> String {
@@ -149,6 +166,11 @@ impl Command {
                 let first = cs.next().map(|c| c.to_uppercase().to_string()).unwrap_or_default();
                 format!("Theme: {first}{}", cs.as_str())
             }
+            Command::PickSyntax => "View: Select Syntax...".into(),
+            Command::SetSyntax(s) => format!("Syntax: {}", s.title()),
+            Command::ConvertIndentToSpaces => "View: Convert Indentation to Spaces".into(),
+            Command::ConvertIndentToTabs => "View: Convert Indentation to Tabs".into(),
+            Command::SetLineEnding(e) => format!("View: Line Endings: {}", eol_title(e)),
         }
     }
 
@@ -177,6 +199,14 @@ impl Command {
             Command::PrevTab => "Ctrl+Shift+Tab",
             _ => "",
         }
+    }
+}
+
+/// "Unix (LF)" / "Windows (CRLF)": how the line endings are called in menus and the palette.
+pub fn eol_title(eol: Eol) -> &'static str {
+    match eol {
+        Eol::Lf => "Unix (LF)",
+        Eol::CrLf => "Windows (CRLF)",
     }
 }
 
@@ -378,7 +408,7 @@ pub fn rank_files(files: &[IndexedFile], query: &str, limit: usize) -> Vec<usize
 pub fn rank_commands(query: &str) -> Vec<Command> {
     let all = Command::all();
     if query.trim().is_empty() {
-        return all;
+        return all.into_iter().filter(|c| !c.is_syntax()).collect();
     }
     let titles: Vec<String> = all.iter().map(|c| c.title()).collect();
     let mut matcher = Matcher::new(Config::DEFAULT);
@@ -425,6 +455,12 @@ mod tests {
         assert_eq!(rank_commands("tgl sdbr").first().copied(), Some(Command::ToggleSidebar));
         assert!(rank_commands("dark").contains(&Command::SetTheme("dark")));
         assert!(rank_commands("").len() >= 12);
+        // The dozens of languages show up only when asked for.
+        assert!(rank_commands("").iter().all(|c| !c.is_syntax()));
+        assert!(rank_commands("").contains(&Command::PickSyntax));
+        let langs = rank_commands("Syntax: ");
+        assert!(langs.iter().take(20).all(|c| c.is_syntax()), "{:?}", &langs[..5]);
+        assert_eq!(rank_commands("syntax html").first().copied(), Some(Command::SetSyntax(Syntax::Lang(crate::syntax::Lang::Html))));
 
         let mut p = Palette::new(Mode::Commands);
         p.items = (0..3).map(|_| Item::command(Command::Save)).collect();

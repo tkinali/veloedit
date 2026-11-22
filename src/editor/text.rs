@@ -68,6 +68,12 @@ pub struct TextDoc {
     /// The file changed on disk while this buffer has unsaved edits.
     pub conflict: bool,
     pub hl: Highlight,
+    /// The user picked the language by hand (View > Syntax): neither the file name nor the
+    /// content is consulted any more.
+    pub lang_locked: bool,
+    /// The buffer version the content was last looked at for a language (a text without a
+    /// file name; `u64::MAX` = never).
+    pub sniffed: u64,
     pub git: GitState,
     /// Only for Markdown documents while the preview is shown.
     pub preview: Option<super::preview::Preview>,
@@ -89,6 +95,8 @@ impl TextDoc {
             disk_hash,
             conflict: false,
             hl: Highlight::default(),
+            lang_locked: false,
+            sniffed: u64::MAX,
             git: GitState::default(),
             preview: None,
         }

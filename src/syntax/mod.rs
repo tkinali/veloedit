@@ -282,6 +282,47 @@ impl Lang {
     }
 }
 
+impl Lang {
+    /// Every language a buffer can be set to by hand, by name (inline Markdown is only ever
+    /// part of Markdown).
+    pub fn pickable() -> Vec<Lang> {
+        let mut all = vec![
+            Lang::Rust, Lang::Python, Lang::JavaScript, Lang::TypeScript, Lang::Tsx, Lang::Json, Lang::Toml,
+            Lang::Bash, Lang::C, Lang::Java, Lang::Php, Lang::Ruby, Lang::Lua, Lang::Html, Lang::Twig, Lang::Css,
+            Lang::Scss, Lang::Xml, Lang::Yaml, Lang::Go, Lang::Markdown, Lang::Make, Lang::CMake, Lang::Ini,
+            Lang::Diff, Lang::Apache,
+        ];
+        all.extend((0..lexer::SPECS.len()).map(|i| Lang::Lex(i as u8)));
+        all.sort_by_key(|l| l.name().to_lowercase());
+        all
+    }
+}
+
+/// What the user picks for a buffer's highlighting ("View > Syntax").
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Syntax {
+    /// Go by the file name (and, for a text that was never saved, by what it starts with).
+    Auto,
+    /// No highlighting, whatever the name or the content says.
+    Plain,
+    Lang(Lang),
+}
+
+impl Syntax {
+    pub fn title(self) -> &'static str {
+        match self {
+            Syntax::Auto => "Auto Detect",
+            Syntax::Plain => "Plain Text",
+            Syntax::Lang(l) => l.name(),
+        }
+    }
+
+    /// Every choice, in list order: the two special ones, then the languages by name.
+    pub fn all() -> Vec<Syntax> {
+        [Syntax::Auto, Syntax::Plain].into_iter().chain(Lang::pickable().into_iter().map(Syntax::Lang)).collect()
+    }
+}
+
 /// Suffixes of a copy / template of another file (`x.xml.dist`, `index.php.bak`).
 const VARIANT_SUFFIXES: [&str; 12] =
     [".old", ".bak", ".orig", ".dist", ".tmp", ".sample", ".example", ".template", ".default", ".backup", ".save", ".new"];
@@ -312,6 +353,32 @@ fn sniff_conf(head: &str) -> Option<Lang> {
     }
 }
 
+/// `s` cut to at most `n` bytes, never in the middle of a character.
+fn prefix(s: &str, n: usize) -> &str {
+    let mut n = n.min(s.len());
+    while !s.is_char_boundary(n) {
+        n -= 1;
+    }
+    &s[..n]
+}
+
+/// `s` without the HTML comments it starts with (a page saved from a browser begins with a
+/// `<!-- saved from url=... -->` line). An unterminated comment is left alone.
+fn skip_comments(mut s: &str) -> &str {
+    for _ in 0..8 {
+        let Some(rest) = s.strip_prefix("<!--") else { break };
+        let Some(end) = rest.find("-->") else { break };
+        s = rest[end + 3..].trim_start();
+    }
+    s
+}
+
+/// The language of a text that has no file name (a new tab the user pasted into): what its
+/// first bytes say it is, or `None`.
+pub fn detect_content(head: &str) -> Option<Lang> {
+    sniff(head)
+}
+
 /// The language a file with no recognizable name says it is in.
 fn sniff(head: &str) -> Option<Lang> {
     let head = head.trim_start_matches('\u{feff}').trim_start();
@@ -321,9 +388,13 @@ fn sniff(head: &str) -> Option<Lang> {
     if head.starts_with("<?php") {
         return Some(Lang::Php);
     }
-    let lower = head[..head.len().min(64)].to_ascii_lowercase();
-    if lower.starts_with("<!doctype html") || lower.starts_with("<html") {
+    let lower = prefix(skip_comments(head), 64).to_ascii_lowercase();
+    if lower.starts_with("<!doctype html") || lower.starts_with("<html") || lower.starts_with("<head") || lower.starts_with("<body") {
         return Some(Lang::Html);
+    }
+    // Any other document type (SVG, DocBook, ...) is XML.
+    if lower.starts_with("<!doctype") || lower.starts_with("<svg") {
+        return Some(Lang::Xml);
     }
     let first = head.lines().next()?;
     let shebang = first.strip_prefix("#!")?;

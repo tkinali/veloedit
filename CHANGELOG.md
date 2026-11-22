@@ -3,6 +3,23 @@
 Every release has a section here; its text becomes the release notes on GitHub
 (see [RELEASING.md](RELEASING.md)). Newest first.
 
+## Unreleased
+
+### Added
+- **View → Syntax…** (also: click the language in the status bar, or *View: Select Syntax...* in the
+  command palette) lists every language and applies the one you pick to the current tab. *Auto Detect*
+  gives the decision back to the file name and content.
+- A text in a new, unsaved tab that starts like a web page is colored right away: `<!DOCTYPE html>`,
+  `<html>`, `<head>`, `<body>` (also after `<!-- saved from url=... -->` comments), other `<!DOCTYPE`s
+  and `<svg` as XML, plus the `<?xml`, `<?php` and `#!` lines that were already recognized.
+- **View → Convert Indentation to Spaces / Tabs** (uses the tab size of the settings) and
+  **View → Line Endings: Unix (LF) / Windows (CRLF)**, also in the command palette. Each is one undo
+  step (undoing a line-ending change also brings back the old style for new lines).
+
+### Fixed
+- A file with an unknown name whose text had a multi-byte character (such as `ş` or `日`) at the 64th
+  byte could crash the editor when its language was guessed from its first bytes.
+
 ## 0.1.2 - 2026-11-21
 
 ### Fixed

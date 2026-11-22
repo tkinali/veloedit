@@ -15,7 +15,8 @@ use iced::{
 
 use crate::{
     editor::{
-        Doc, LONG_LABEL, Pane, SPLIT_MAX, SPLIT_MIN, SplitDir, TabId, TabSet, TextDoc, hex, state::Action,
+        Doc, LONG_LABEL, Pane, SPLIT_MAX, SPLIT_MIN, SplitDir, TabId, TabSet, TextDoc, hex,
+        state::{Action, Eol},
         loader::{self, Body, Loaded},
     },
     fileops,
@@ -27,7 +28,7 @@ use crate::{
     search,
     settings::{self, Settings},
     git::{self, Base, GitState},
-    syntax::{self, Lang},
+    syntax::{self, Lang, Syntax},
     session::{self, SessionFile, Snapshot, TabKind, TabRecord},
     ui::{
         find_bar, hex_view, image_view,
@@ -380,8 +381,47 @@ impl App {
                 tab.preview = false;
             }
         }
+        self.detect_untitled();
         self.refresh_preview();
         task
+    }
+
+    /// A text that has no file name has no extension to go by: what it starts with decides
+    /// (a page pasted into a new tab is HTML) - until the user picks a language by hand.
+    fn detect_untitled(&mut self) {
+        let Some(tab) = self.tabs.active_mut() else { return };
+        if tab.path.is_some() {
+            return;
+        }
+        let Doc::Text(doc) = &mut tab.doc else { return };
+        if doc.lang_locked || doc.sniffed == doc.version() {
+            return;
+        }
+        doc.sniffed = doc.version();
+        doc.hl.set_lang(syntax::detect_content(&doc.state.byte_slice(0, 8192)));
+    }
+
+    /// View > Syntax: sets the active document's language; `Auto` gives the decision back to
+    /// the file name (and, for an unsaved text, the content).
+    fn set_syntax(&mut self, choice: Syntax) {
+        let Some(tab) = self.tabs.active_mut() else { return };
+        let path = tab.path.clone();
+        let Doc::Text(doc) = &mut tab.doc else { return };
+        let (lang, locked) = match choice {
+            Syntax::Auto => {
+                let head = doc.state.byte_slice(0, 8192);
+                (path.as_deref().map_or_else(|| syntax::detect_content(&head), |p| Lang::detect_with(p, &head)), false)
+            }
+            Syntax::Plain => (None, true),
+            Syntax::Lang(l) => (Some(l), true),
+        };
+        doc.lang_locked = locked;
+        doc.sniffed = if locked { doc.version() } else { u64::MAX };
+        doc.hl.set_lang(lang);
+        self.notice = Some(match choice {
+            Syntax::Auto => format!("Syntax: auto detect ({})", lang.map_or("Plain Text", Lang::name)),
+            other => format!("Syntax: {}", other.title()),
+        });
     }
 
     fn handle(&mut self, message: Message) -> Task<Message> {
@@ -934,7 +974,9 @@ impl App {
                             self.tabs.set_path(id, path.clone());
                             if let Some(Doc::Text(doc)) = self.tabs.get_mut(id).map(|t| &mut t.doc) {
                                 doc.git = GitState::default(); // another file now
-                                doc.hl.set_lang(Lang::detect_with(&path, &doc.state.byte_slice(0, 8192)));
+                                if !doc.lang_locked {
+                                    doc.hl.set_lang(Lang::detect_with(&path, &doc.state.byte_slice(0, 8192)));
+                                }
                             }
                         }
                         if path == settings::path() {
@@ -1071,7 +1113,9 @@ impl App {
                         for (id, path) in moved {
                             self.tabs.set_path(id, path.clone());
                             if let Some(Doc::Text(doc)) = self.tabs.get_mut(id).map(|t| &mut t.doc) {
-                                doc.hl.set_lang(Lang::detect_with(&path, &doc.state.byte_slice(0, 8192)));
+                                if !doc.lang_locked {
+                                    doc.hl.set_lang(Lang::detect_with(&path, &doc.state.byte_slice(0, 8192)));
+                                }
                             }
                         }
                         if let Some(dir) = from.parent() {
@@ -1376,6 +1420,50 @@ impl App {
                 let Some(colors) = theme::by_name(&name) else { return Task::none() };
                 self.settings.theme = colors.name.to_owned();
                 persist_setting("theme", serde_json::json!(colors.name))
+            }
+            Message::SetSyntax(choice) => {
+                self.set_syntax(choice);
+                self.settle()
+            }
+            Message::OpenSyntaxPicker => {
+                if !matches!(self.tabs.active().map(|t| &t.doc), Some(Doc::Text(_))) {
+                    return Task::none();
+                }
+                let open = self.open_palette(Mode::Commands);
+                if let Some(p) = &mut self.palette {
+                    p.query = "Syntax: ".to_owned();
+                }
+                // The list of languages, the cursor behind the prefix: typing narrows it.
+                Task::batch([open, self.refresh_palette(), widget::operation::move_cursor_to_end(palette_view::INPUT_ID)])
+            }
+            Message::ConvertIndent { spaces } => {
+                let converted = match self.tabs.active_mut().map(|t| &mut t.doc) {
+                    Some(Doc::Text(doc)) => Some(doc.state.convert_indentation(spaces, Instant::now())),
+                    _ => None,
+                };
+                let Some(n) = converted else { return Task::none() };
+                let to = if spaces { "spaces" } else { "tabs" };
+                self.notice = Some(match n {
+                    0 => format!("The indentation is already made of {to}"),
+                    n => format!("Indentation converted to {to} on {n} line{}", if n == 1 { "" } else { "s" }),
+                });
+                self.session_dirty = true;
+                self.settle()
+            }
+            Message::SetLineEnding(eol) => {
+                let converted = match self.tabs.active_mut().map(|t| &mut t.doc) {
+                    Some(Doc::Text(doc)) => Some((doc.state.eol() == eol, doc.state.set_eol(eol, Instant::now()))),
+                    _ => None,
+                };
+                let Some((was, n)) = converted else { return Task::none() };
+                let name = palette::eol_title(eol);
+                self.notice = Some(match (was, n) {
+                    (true, 0) => format!("The line endings are already {name}"),
+                    (_, 0) => format!("Line endings set to {name}"),
+                    (_, n) => format!("Line endings converted to {name} on {n} line{}", if n == 1 { "" } else { "s" }),
+                });
+                self.session_dirty = true;
+                self.settle()
             }
             Message::OpenSettingsPanel => {
                 if self.dialog.is_some() {
@@ -1800,10 +1888,30 @@ impl App {
     }
 
     /// Entries of menu bar drop-down `i` (see `menu_bar::MENUS`).
+    /// The language of the active text as the status bar names it.
+    fn syntax_name(&self) -> String {
+        match self.tabs.active().map(|t| &t.doc) {
+            Some(Doc::Text(d)) => d.hl.lang.map_or("Plain Text", Lang::name).to_owned(),
+            _ => String::new(),
+        }
+    }
+
+    /// What the user has chosen for the active text (`Auto` while the file name / content decides).
+    fn current_syntax(&self) -> Syntax {
+        match self.tabs.active().map(|t| &t.doc) {
+            Some(Doc::Text(d)) if d.lang_locked => d.hl.lang.map_or(Syntax::Plain, Syntax::Lang),
+            _ => Syntax::Auto,
+        }
+    }
+
     fn menu_entries(&self, i: usize) -> Vec<Entry> {
         let text_tab = matches!(self.tabs.active().map(|t| &t.doc), Some(Doc::Text(_)));
         let split_dir = self.tabs.active().and_then(|t| t.split.as_ref()).map(|s| s.dir);
         let any_tab = self.tabs.active().is_some();
+        let eol = match self.tabs.active().map(|t| &t.doc) {
+            Some(Doc::Text(d)) => Some(d.state.eol()),
+            _ => None,
+        };
         let s = &self.settings;
         match i {
             0 => vec![
@@ -1851,6 +1959,14 @@ impl App {
                 Entry::toggle("Split Right", split_dir == Some(SplitDir::Right), Message::SplitActive(SplitDir::Right)).when(text_tab),
                 Entry::toggle("Split Down", split_dir == Some(SplitDir::Down), Message::SplitActive(SplitDir::Down)).when(text_tab),
                 Entry::item("Close Split", "", Message::CloseSplitActive).when(split_dir.is_some()),
+                Entry::Sep,
+                Entry::with_hint("Syntax...", self.syntax_name(), Message::OpenSyntaxPicker, None).when(text_tab),
+                Entry::item("Convert Indentation to Spaces", "", Message::ConvertIndent { spaces: true }).when(text_tab),
+                Entry::item("Convert Indentation to Tabs", "", Message::ConvertIndent { spaces: false }).when(text_tab),
+                Entry::toggle(format!("Line Endings: {}", palette::eol_title(Eol::Lf)), eol == Some(Eol::Lf), Message::SetLineEnding(Eol::Lf))
+                    .when(text_tab),
+                Entry::toggle(format!("Line Endings: {}", palette::eol_title(Eol::CrLf)), eol == Some(Eol::CrLf), Message::SetLineEnding(Eol::CrLf))
+                    .when(text_tab),
                 Entry::Sep,
                 Entry::item("Increase Font Size", "Ctrl+=", Message::ChangeFontSize(1)),
                 Entry::item("Decrease Font Size", "Ctrl+-", Message::ChangeFontSize(-1)),
@@ -1923,11 +2039,17 @@ impl App {
         let seq = self.palette_seq;
         let defaults = self.default_file_items();
         let hex_active = matches!(self.tabs.active().map(|t| &t.doc), Some(Doc::Hex(_)));
+        let current_syntax = self.current_syntax();
         let Some(p) = &mut self.palette else { return Task::none() };
         p.selected = 0;
         match p.mode {
             Mode::Commands => {
                 p.items = palette::rank_commands(&p.query).into_iter().map(Item::command).collect();
+                for item in &mut p.items {
+                    if matches!(item.target, Target::Command(Command::SetSyntax(s)) if s == current_syntax) {
+                        item.detail = "current".to_owned();
+                    }
+                }
                 Task::none()
             }
             Mode::Search => {
@@ -2131,11 +2253,21 @@ impl App {
                     }
                     note = format!("{name} changed on disk - your unsaved edits are kept");
                 } else {
+                    // A language the user picked by hand outlives the reload.
+                    let picked = match &*slot {
+                        Doc::Text(d) if d.lang_locked => Some(d.hl.lang),
+                        _ => None,
+                    };
                     *slot = match body {
-                        Body::Text(t) => Doc::Text(
-                            TextDoc::new(&t, false, loaded.disk_hash)
-                                .with_lang(tab.path.as_deref().and_then(|p| Lang::detect_text(p, &t))),
-                        ),
+                        Body::Text(t) => {
+                            let mut doc = TextDoc::new(&t, false, loaded.disk_hash)
+                                .with_lang(tab.path.as_deref().and_then(|p| Lang::detect_text(p, &t)));
+                            if let Some(lang) = picked {
+                                doc.lang_locked = true;
+                                doc.hl.set_lang(lang);
+                            }
+                            Doc::Text(doc)
+                        }
                         Body::Hex(h) => Doc::Hex(h),
                         Body::Image(i) => Doc::Image(i),
                     };
@@ -2861,6 +2993,11 @@ fn command_message(cmd: Command) -> Message {
         Command::FindNext => Message::FindNext,
         Command::FindPrev => Message::FindPrev,
         Command::SetTheme(name) => Message::SetTheme(name.to_owned()),
+        Command::PickSyntax => Message::OpenSyntaxPicker,
+        Command::SetSyntax(s) => Message::SetSyntax(s),
+        Command::ConvertIndentToSpaces => Message::ConvertIndent { spaces: true },
+        Command::ConvertIndentToTabs => Message::ConvertIndent { spaces: false },
+        Command::SetLineEnding(e) => Message::SetLineEnding(e),
     }
 }
 

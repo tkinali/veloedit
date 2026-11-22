@@ -24,6 +24,8 @@ unsaved work across restarts, and never blocks the UI on disk, git or highlighti
 - **Syntax highlighting** for ~50 languages: 25 tree-sitter grammars (PHP with its HTML/CSS/JS,
   JavaScript/TypeScript, Python, Rust, Go, Java, Ruby, Lua, Markdown, YAML, TOML, …) plus a
   light lexer for the rest (Kotlin, Swift, C++, C#, SQL, Dart, Twig/Jinja, …).
+- **Syntax on demand**: *View → Syntax…* (or click the language in the status bar) lists every language and applies the one you pick; *Auto Detect* gives the decision back. A text in a new tab that starts like a web page (`<!DOCTYPE html>`, `<html>`, `<?xml`, `#!/bin/bash`, …) is colored as soon as you paste it.
+- **Format menu entries** in *View*: *Convert Indentation to Spaces / Tabs* (uses the tab size of the settings) and *Line Endings: Unix (LF) / Windows (CRLF)*. Each is one undo step.
 - **Project tools**: multi-root folder sidebar (resizable, file-type badges, right-click menu with
   new/rename/trash/copy path), `Ctrl+P` fuzzy file open, `Ctrl+Shift+P` command palette,
   `Ctrl+Shift+F` find in files with a `*.php, !vendor` filter and folder scope.

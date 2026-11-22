@@ -2714,3 +2714,206 @@ fn a_long_name_never_pushes_the_close_button_of_a_pane_out_of_its_name_bar() {
         drop(app.update(Message::ClosePane(id, Pane::Second)));
     }
 }
+
+fn text_doc(app: &App, id: TabId) -> &TextDoc {
+    match &app.tabs.get(id).unwrap().doc {
+        Doc::Text(d) => d,
+        _ => panic!("a text tab"),
+    }
+}
+
+#[test]
+fn a_page_pasted_into_a_new_tab_is_html_until_a_language_is_picked() {
+    use crate::syntax::Syntax;
+    let _turn = session_lock();
+    let mut app = booted(vec![]);
+    drop(app.update(Message::NewFile));
+    let id = app.tabs.active_id().unwrap();
+    let paste = |app: &mut App, text: &str| {
+        drop(app.update(Message::Editor(id, Action::SelectAll)));
+        drop(app.update(Message::Editor(id, Action::Insert(text.into()))));
+    };
+    assert_eq!(text_doc(&app, id).hl.lang, None, "an empty tab is plain text");
+
+    // The page's source, as copied from a browser: no name, but it says what it is.
+    paste(&mut app, "<!DOCTYPE html>\n<html lang=\"tr\">\n<head><title>x</title></head>\n<body><p>merhaba</p></body>\n</html>\n");
+    assert_eq!(text_doc(&app, id).hl.lang, Some(Lang::Html));
+    assert!(app.wants_highlight(), "and the worker is asked to color it");
+    assert_eq!(app.syntax_name(), "HTML");
+
+    // Words are not a page: back to plain text (the detection follows the content).
+    paste(&mut app, "just some words");
+    assert_eq!(text_doc(&app, id).hl.lang, None);
+    paste(&mut app, "#!/bin/bash\nls -l\n");
+    assert_eq!(text_doc(&app, id).hl.lang, Some(Lang::Bash));
+
+    // A language picked by hand sticks, whatever the content says afterwards.
+    drop(app.update(Message::SetSyntax(Syntax::Lang(Lang::Rust))));
+    assert_eq!(app.current_syntax(), Syntax::Lang(Lang::Rust));
+    paste(&mut app, "<!DOCTYPE html>\n<html>\n</html>\n");
+    assert_eq!(text_doc(&app, id).hl.lang, Some(Lang::Rust));
+    assert_eq!(app.notice.as_deref(), Some("Syntax: Rust"));
+    drop(app.update(Message::SetSyntax(Syntax::Plain)));
+    assert_eq!((text_doc(&app, id).hl.lang, app.current_syntax()), (None, Syntax::Plain), "plain text is a choice, too");
+    paste(&mut app, "<!DOCTYPE html>\n<html>\n</html>\n");
+    assert_eq!(text_doc(&app, id).hl.lang, None);
+
+    // Auto Detect gives the decision back to the content.
+    drop(app.update(Message::SetSyntax(Syntax::Auto)));
+    assert_eq!((text_doc(&app, id).hl.lang, app.current_syntax()), (Some(Lang::Html), Syntax::Auto));
+    assert_eq!(app.notice.as_deref(), Some("Syntax: auto detect (HTML)"));
+    paste(&mut app, "plain again");
+    assert_eq!(text_doc(&app, id).hl.lang, None);
+}
+
+#[test]
+fn a_hand_picked_language_survives_saving_under_a_name_and_a_file_picks_its_own_by_name() {
+    use crate::syntax::Syntax;
+    let _turn = session_lock();
+    let root = project();
+    let mut app = booted(vec![]);
+    drop(app.update(Message::NewFile));
+    let id = app.tabs.active_id().unwrap();
+    drop(app.update(Message::Editor(id, Action::Insert("some notes\n".into()))));
+    drop(app.update(Message::SetSyntax(Syntax::Lang(Lang::Markdown))));
+    // Saved as a .txt: the choice stays (a file name that says nothing must not undo it)...
+    drop(app.update(Message::Saved { id, path: root.join("picked-notes.txt"), version: 1, then_close: false, result: Ok(0) }));
+    assert_eq!(text_doc(&app, id).hl.lang, Some(Lang::Markdown));
+    // ...and Auto Detect then goes by the name it has now.
+    drop(app.update(Message::SetSyntax(Syntax::Auto)));
+    assert_eq!(text_doc(&app, id).hl.lang, None, ".txt is plain text");
+    assert!(!text_doc(&app, id).lang_locked);
+
+    // Without a pick, saving under a name decides as before.
+    drop(app.update(Message::NewFile));
+    let other = app.tabs.active_id().unwrap();
+    drop(app.update(Message::Editor(other, Action::Insert("x".into()))));
+    drop(app.update(Message::Saved { id: other, path: root.join("fresh2.rs"), version: 1, then_close: false, result: Ok(0) }));
+    assert_eq!(text_doc(&app, other).hl.lang, Some(Lang::Rust));
+}
+
+#[test]
+fn the_syntax_picker_is_the_command_palette_on_the_list_of_languages() {
+    use crate::{palette::Command, syntax::Syntax};
+    let _turn = session_lock();
+    let root = project();
+    let mut app = booted(vec![]);
+    open(&mut app, &root.join("hello.rs"));
+    let id = app.tabs.active_id().unwrap();
+
+    drop(app.update(Message::OpenSyntaxPicker));
+    let p = app.palette.as_ref().expect("the palette is open");
+    assert_eq!((p.mode, p.query.as_str()), (Mode::Commands, "Syntax: "));
+    assert!(p.items.len() > 40, "every language is listed: {}", p.items.len());
+    assert!(p.items.iter().all(|i| i.title.starts_with("Syntax: ")));
+    // The file's language is marked; Auto Detect is the one actually in force.
+    let marked: Vec<_> = p.items.iter().filter(|i| i.detail == "current").map(|i| i.title.as_str()).collect();
+    assert_eq!(marked, ["Syntax: Auto Detect"], "{marked:?}");
+    shot(&app, "syntax-picker");
+
+    // Typing narrows the list; Enter applies the first hit.
+    drop(app.update(Message::PaletteQuery("Syntax: html".into())));
+    assert_eq!(app.palette.as_ref().unwrap().items[0].title, "Syntax: HTML");
+    drop(app.update(Message::PaletteSubmit));
+    assert!(app.palette.is_none());
+    assert_eq!((text_doc(&app, id).hl.lang, app.current_syntax()), (Some(Lang::Html), Syntax::Lang(Lang::Html)));
+
+    // It is also an ordinary command of the palette, and a menu entry that shows the language.
+    drop(app.update(Message::OpenPalette(Mode::Commands)));
+    drop(app.update(Message::PaletteQuery("select syn".into())));
+    assert!(matches!(app.palette.as_ref().unwrap().items[0].target, Target::Command(Command::PickSyntax)));
+    drop(app.update(Message::Escape));
+    let view = app.menu_entries(2);
+    let entry = view.iter().find_map(|e| match e {
+        Entry::Item { label, hint, enabled, .. } if label == "Syntax..." => Some((hint.to_string(), *enabled)),
+        _ => None,
+    });
+    assert_eq!(entry, Some(("HTML".to_owned(), true)));
+
+    // A picker for an image or a hex view makes no sense.
+    drop(app.update(Message::OpenSyntaxPicker));
+    drop(app.update(Message::Escape));
+    assert!(app.palette.is_none());
+}
+
+#[test]
+fn the_language_in_the_status_bar_opens_the_picker() {
+    let _turn = session_lock();
+    let root = project();
+    let mut app = booted(vec![]);
+    open(&mut app, &root.join("hello.rs"));
+    let msgs = messages(&app, |ui| {
+        ui.click("Rust").expect("the language is a button in the status bar");
+    });
+    assert!(matches!(msgs.as_slice(), [Message::OpenSyntaxPicker]), "{}", msgs.len());
+    shot(&app, "status-bar-syntax");
+}
+
+#[test]
+fn view_menu_converts_indentation_and_line_endings_as_one_undo_step() {
+    let _turn = session_lock();
+    let mut app = booted(vec![]);
+    drop(app.update(Message::NewFile));
+    let id = app.tabs.active_id().unwrap();
+    drop(app.update(Message::Editor(id, Action::Insert("fn a() {\n\tlet x = 1;\n\t\tlet y = 2;\n    let z = 3;\n}\n".into()))));
+    let text = |app: &App| text_doc(app, id).text();
+    let original = text(&app);
+
+    // Indentation.
+    drop(app.update(Message::MenuPick(Box::new(Message::ConvertIndent { spaces: true }))));
+    assert_eq!(text(&app), "fn a() {\n    let x = 1;\n        let y = 2;\n    let z = 3;\n}\n");
+    assert_eq!(app.notice.as_deref(), Some("Indentation converted to spaces on 2 lines"));
+    drop(app.update(Message::ConvertIndent { spaces: true }));
+    assert_eq!(app.notice.as_deref(), Some("The indentation is already made of spaces"));
+    drop(app.update(Message::EditAction(Action::Undo)));
+    assert_eq!(text(&app), original, "one Ctrl+Z undoes the whole conversion");
+    drop(app.update(Message::ConvertIndent { spaces: false }));
+    assert_eq!(text(&app), "fn a() {\n\tlet x = 1;\n\t\tlet y = 2;\n\tlet z = 3;\n}\n");
+    assert_eq!(app.notice.as_deref(), Some("Indentation converted to tabs on 1 line"));
+
+    // Line endings: the menu shows the current one with a check mark.
+    let checked = |app: &App| -> Vec<String> {
+        app.menu_entries(2)
+            .iter()
+            .filter_map(|e| match e {
+                Entry::Item { label, checked: Some(true), .. } if label.starts_with("Line Endings") => Some(label.clone()),
+                _ => None,
+            })
+            .collect()
+    };
+    assert_eq!(checked(&app), ["Line Endings: Unix (LF)"]);
+    drop(app.update(Message::SetLineEnding(Eol::CrLf)));
+    assert!(text(&app).contains("{\r\n\tlet x"), "{:?}", text(&app));
+    assert_eq!(app.notice.as_deref(), Some("Line endings converted to Windows (CRLF) on 5 lines"));
+    assert_eq!(checked(&app), ["Line Endings: Windows (CRLF)"]);
+    assert!(text_doc(&app, id).dirty());
+    drop(app.update(Message::SetLineEnding(Eol::CrLf)));
+    assert_eq!(app.notice.as_deref(), Some("The line endings are already Windows (CRLF)"));
+
+    // What is saved is what the buffer holds, and Ctrl+Z gets the old endings (and style) back.
+    let (saved, _) = app.text_to_save(id, Path::new("converted.txt")).expect("a text tab");
+    assert_eq!(saved, text(&app));
+    drop(app.update(Message::EditAction(Action::Undo)));
+    assert!(!text(&app).contains('\r'));
+    assert_eq!(checked(&app), ["Line Endings: Unix (LF)"]);
+    drop(app.update(Message::OpenMenu(2)));
+    shot(&app, "view-menu-format");
+    drop(app.update(Message::OpenMenu(2)));
+    assert!(app.popup.is_none());
+
+    // The same commands are in the palette.
+    drop(app.update(Message::OpenPalette(Mode::Commands)));
+    drop(app.update(Message::PaletteQuery("windows".into())));
+    assert_eq!(app.palette.as_ref().unwrap().items[0].title, "View: Line Endings: Windows (CRLF)");
+    drop(app.update(Message::PaletteSubmit));
+    assert!(text(&app).contains("\r\n"));
+    drop(app.update(Message::OpenPalette(Mode::Commands)));
+    drop(app.update(Message::PaletteQuery("indentation spaces".into())));
+    assert_eq!(app.palette.as_ref().unwrap().items[0].title, "View: Convert Indentation to Spaces");
+    drop(app.update(Message::PaletteSubmit));
+    assert!(!text(&app).contains('\t'));
+
+    // Nothing of this applies to a tab that is not text.
+    let e = app.menu_entries(2);
+    assert!(e.iter().any(|e| matches!(e, Entry::Item { label, enabled: true, .. } if label == "Convert Indentation to Tabs")));
+}

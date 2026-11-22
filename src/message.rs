@@ -10,11 +10,11 @@ use iced::keyboard;
 use crate::{
     git::GitMarks,
     palette::{IndexedFile, Mode},
-    syntax::{Lang, LineSpans, ParseState},
+    syntax::{Lang, LineSpans, ParseState, Syntax},
 };
 
 use crate::{
-    editor::{TabId, loader::Loaded},
+    editor::{TabId, loader::Loaded, state::Eol},
     workspace::Entry,
 };
 
@@ -92,6 +92,14 @@ pub enum Message {
     ReloadActive,
     OpenSettings,
     SetTheme(String),
+    /// View > Syntax: set (or, with `Auto`, give back) the active document's language.
+    SetSyntax(Syntax),
+    /// Opens the palette on the list of languages.
+    OpenSyntaxPicker,
+    /// View > Convert Indentation to Spaces / Tabs.
+    ConvertIndent { spaces: bool },
+    /// View > Line Endings.
+    SetLineEnding(Eol),
     ChangeFontSize(i32),
     ChangeTabSize(i32),
     ToggleSetting(Toggle),

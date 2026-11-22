@@ -128,6 +128,8 @@ impl EditorState {
         if self.tab_size != src.tab_size {
             self.tab_size = src.tab_size;
         }
+        // The same text, so the same line-ending style (a conversion changes both).
+        self.eol = src.eol;
         match changes {
             Some(list) if list.is_empty() && self.version == src.version && self.rope.len_chars() == src.rope.len_chars() => return,
             Some(list) => {
