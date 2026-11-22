@@ -1,6 +1,6 @@
 [package]
 name = "veloedit"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2024"
 description = "VeloEdit - millisecond-start, GPU-accelerated, multi-view text editor"
 license = "MIT"

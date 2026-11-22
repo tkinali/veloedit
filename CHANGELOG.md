@@ -3,7 +3,7 @@
 Every release has a section here; its text becomes the release notes on GitHub
 (see [RELEASING.md](RELEASING.md)). Newest first.
 
-## Unreleased
+## 0.2.0 - 2026-11-22
 
 ### Added
 - **View → Syntax…** (also: click the language in the status bar, or *View: Select Syntax...* in the
