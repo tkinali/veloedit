@@ -3435,3 +3435,8 @@ fn dialog<'a>(
 #[cfg(test)]
 #[path = "app_tests.rs"]
 mod tests;
+
+// The frames of the promo video (ignored: `cargo test --release promo_frames -- --ignored`).
+#[cfg(test)]
+#[path = "app_promo.rs"]
+mod promo;

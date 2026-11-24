@@ -46,7 +46,7 @@ fn shot(app: &App, name: &str) {
     assert!(snap.matches_image(dir.join(format!("{name}.png"))).unwrap());
 }
 
-fn scratch() -> PathBuf {
+pub(super) fn scratch() -> PathBuf {
     static INIT: Once = Once::new();
     // The canonical temp dir: the app canonicalizes the folders it is given, and on a Windows
     // CI runner the plain one is an 8.3 short name ("RUNNER~1") that never equals the long one.
@@ -64,7 +64,7 @@ fn scratch() -> PathBuf {
 }
 
 /// Tests that write the (process-wide) session directory take turns.
-fn session_lock() -> std::sync::MutexGuard<'static, ()> {
+pub(super) fn session_lock() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
     LOCK.lock().unwrap_or_else(|e| e.into_inner())
 }
@@ -105,19 +105,19 @@ fn create_project() -> PathBuf {
     root
 }
 
-fn booted(args: Vec<PathBuf>) -> App {
+pub(super) fn booted(args: Vec<PathBuf>) -> App {
     scratch();
     let (mut app, _tasks) = App::boot(args);
     drop(app.update(Message::Restored(Handoff::new(vec![]), None)));
     app
 }
 
-fn open(app: &mut App, path: &Path) {
+pub(super) fn open(app: &mut App, path: &Path) {
     let loaded = block_on(loader::open(path.to_path_buf())).expect("opens");
     drop(app.update(Message::Opened(Ok(Handoff::new(loaded)))));
 }
 
-fn scan_all(app: &mut App, dir: &Path) {
+pub(super) fn scan_all(app: &mut App, dir: &Path) {
     drop(app.update(Message::DirScanned {
         path: dir.to_path_buf(),
         entries: workspace::read_dir(dir),
@@ -296,7 +296,7 @@ fn unsaved_tabs_are_named_after_their_first_line() {
 }
 
 /// Every message the widgets publish while `drive` runs against the current view.
-fn messages(app: &App, drive: impl FnOnce(&mut iced_test::Simulator<'_, Message>)) -> Vec<Message> {
+pub(super) fn messages(app: &App, drive: impl FnOnce(&mut iced_test::Simulator<'_, Message>)) -> Vec<Message> {
     let mut ui = iced_test::simulator(app.view());
     drive(&mut ui);
     ui.into_messages().collect()
@@ -812,7 +812,7 @@ fn sidebar_follows_the_disk() {
     assert_eq!(names(&app), vec!["live", "d", "two.txt"]);
 }
 
-fn type_query(app: &mut App, q: &str) {
+pub(super) fn type_query(app: &mut App, q: &str) {
     drop(app.update(Message::PaletteQuery(q.to_owned())));
     // The ranking runs on a worker in the app; run the same function here.
     let seq = app.palette_seq;
@@ -913,7 +913,7 @@ fn command_palette_switches_theme_and_modal_blocks_the_editor() {
 
 /// What the worker task does, run inline: parse the active buffer and deliver
 /// the result as the app would receive it.
-fn run_highlight_job(app: &mut App) {
+pub(super) fn run_highlight_job(app: &mut App) {
     drop(app.start_analysis()); // no-op if the job was already started
     let id = app.tabs.active_id().unwrap();
     let Doc::Text(doc) = &app.tabs.get(id).unwrap().doc else { panic!() };
@@ -1876,7 +1876,7 @@ fn drawing_a_huge_document_costs_only_the_visible_lines() {
 }
 
 /// What the search worker does, run inline.
-fn deliver_find_results(app: &mut App) {
+pub(super) fn deliver_find_results(app: &mut App) {
     let key = app.find.requested.clone().expect("a search was started");
     let Doc::Text(doc) = &app.tabs.active().unwrap().doc else { panic!() };
     let (matches, error) = match app.find.query.compile() {
@@ -2063,7 +2063,7 @@ fn a_restored_draft_identical_to_the_file_is_not_dirty() {
 }
 
 /// Runs the search the palette would have started (tasks don't run in tests).
-fn finish_search(app: &mut App, roots: &[PathBuf]) {
+pub(super) fn finish_search(app: &mut App, roots: &[PathBuf]) {
     let seq = app.palette_seq;
     let p = app.palette.as_ref().unwrap();
     let re = p.search_query().compile().unwrap().unwrap();
