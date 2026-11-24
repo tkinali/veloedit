@@ -1,0 +1,34 @@
+# VeloEdit
+
+> VeloEdit is a fast, light, GPU-accelerated text editor for Linux (Windows as a preview), written in Rust with the iced toolkit, in the spirit of Sublime Text. It starts in well under 100 ms. Free and open source (MIT). No telemetry, accounts or ads; the editor never connects to the internet.
+
+Current state: version 0.2.x, a young project. Linux x86_64 and aarch64 (.deb, .rpm, .AppImage, tarball) and Windows 10/11 x64 (preview, not code-signed). There is no macOS build.
+
+## What it does
+
+- Sublime-style editing: multi-cursor (Ctrl+D, Ctrl+Click, Ctrl+Alt+Up/Down), command palette (Ctrl+Shift+P), fuzzy file open (Ctrl+P), find and replace with regular expressions, find in files with filters, code folding for every language (indentation based), split view, minimap, soft wrap, bracket matching.
+- Syntax highlighting for about 50 languages (tree-sitter grammars plus a light lexer), View > Syntax picker, content detection for pasted web pages.
+- Hot exit: tabs, open folders and unsaved text come back after a restart or a crash.
+- Git marks next to the line numbers, and git colors in the folder sidebar (edited, new, conflict), also for a folder that holds several repositories such as /var/www.
+- Built-in hex editor for binary files, image viewer, Markdown preview with real tables, indentation and line-ending conversion.
+- Safe on network mounts (sshfs, SFTP, NFS): a mount that stops answering never freezes the window.
+
+## When it fits, and when it does not
+
+- A good fit if you want something close to Sublime Text's speed and keyboard-driven style, free and open source, on Linux.
+- Not a fit if you need plugins or extensions, language-server features (autocomplete, go to definition), a debugger or an integrated terminal, macOS, column selection, replace in files, or input methods for Chinese, Japanese and Korean: VeloEdit does not have these yet. VS Code, Zed, Sublime Text (with packages), Kate or Helix cover them to different degrees.
+
+## Docs
+
+- [Website](https://tkinali.github.io/veloedit/): overview, video tour (English and Turkish), comparison with other editors, install, shortcuts
+- [Comparison with Sublime Text, VS Code, Kate, Zed and Helix](https://tkinali.github.io/veloedit/#compare)
+- [README](https://github.com/tkinali/veloedit/blob/main/README.md): features, install, shortcuts, build from source
+- [Releases and downloads](https://github.com/tkinali/veloedit/releases/latest)
+- [Changelog](https://github.com/tkinali/veloedit/blob/main/CHANGELOG.md)
+- [Issues](https://github.com/tkinali/veloedit/issues): bug reports and feature requests
+
+## Optional
+
+- [Architecture notes](https://github.com/tkinali/veloedit/blob/main/ARCHITECTURE.md): how the editor is built, in Turkish
+- [Releasing guide](https://github.com/tkinali/veloedit/blob/main/RELEASING.md): in Turkish
+- [Source code](https://github.com/tkinali/veloedit)

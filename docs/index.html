@@ -15,6 +15,41 @@
 <meta property="og:url" content="https://tkinali.github.io/veloedit/">
 <meta property="og:image" content="https://tkinali.github.io/veloedit/screenshots/og.png">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="alternate" type="text/plain" href="llms.txt" title="llms.txt">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "VeloEdit",
+  "alternateName": "VeloEdit text editor",
+  "description": "A fast, light, GPU-accelerated text editor for Linux (Windows preview), written in Rust, in the spirit of Sublime Text. Multi-cursor, command palette, code folding, split view, hex editor, Markdown preview. Free and open source, MIT licensed, no telemetry.",
+  "url": "https://tkinali.github.io/veloedit/",
+  "applicationCategory": "DeveloperApplication",
+  "applicationSubCategory": "Text editor",
+  "operatingSystem": "Linux, Windows 10, Windows 11",
+  "downloadUrl": "https://github.com/tkinali/veloedit/releases/latest",
+  "license": "https://github.com/tkinali/veloedit/blob/main/LICENSE",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "image": "https://tkinali.github.io/veloedit/screenshots/og.png",
+  "sameAs": [
+    "https://github.com/tkinali/veloedit"
+  ],
+  "author": {
+    "@type": "Person",
+    "name": "tkinali",
+    "url": "https://github.com/tkinali"
+  },
+  "inLanguage": [
+    "en",
+    "tr"
+  ]
+}
+</script>
 <script>
   // Language before first paint: saved choice, else the browser's.
   (function () {
@@ -228,6 +263,33 @@
   .keys div { display: flex; justify-content: space-between; gap: 1rem; padding: .7rem 0; border-bottom: 1px solid var(--border); font-size: .98rem; }
   .keys div span:last-child { color: var(--dim); text-align: right; }
 
+  /* ---- comparison ---- */
+  .compare { overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-2); }
+  .compare table { width: 100%; min-width: 880px; border-collapse: collapse; font-size: .93rem; line-height: 1.45; }
+  .compare th, .compare td { padding: .8rem .9rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+  .compare tbody tr:last-child th, .compare tbody tr:last-child td { border-bottom: 0; }
+  .compare thead th { color: var(--bright); font-size: .95rem; white-space: nowrap; background: var(--surface); }
+  .compare thead a { color: var(--bright); }
+  .compare tbody th { position: sticky; left: 0; z-index: 1; min-width: 9.5rem; max-width: 11rem; color: var(--bright); font-weight: 600; background: var(--surface-2); }
+  .compare .us { background: color-mix(in srgb, var(--accent) 9%, var(--surface-2)); }
+  .compare thead .us { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
+  .compare .us { border-left: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border)); border-right: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border)); }
+  .note { max-width: 52rem; margin: 1rem auto 0; font-size: .9rem; color: var(--dim); text-align: center; }
+  .choose { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.2rem; margin-top: 2rem; }
+  .choose h3 { margin: 0 0 .6rem; color: var(--bright); font-size: 1.15rem; }
+  .choose ul { margin: 0; padding-left: 1.1rem; }
+  .choose li { margin: .45rem 0; font-size: .97rem; }
+
+  /* ---- questions ---- */
+  .faq { max-width: 52rem; margin: 0 auto; }
+  .faq details { border-bottom: 1px solid var(--border); }
+  .faq details:first-child { border-top: 1px solid var(--border); }
+  .faq summary { cursor: pointer; padding: 1rem 2rem 1rem 0; color: var(--bright); font-weight: 600; list-style: none; position: relative; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "+"; position: absolute; right: .3rem; top: .9rem; color: var(--accent); font-size: 1.3rem; line-height: 1; }
+  .faq details[open] summary::after { content: "\2212"; }
+  .faq details p { margin: 0 0 1.1rem; max-width: 46rem; }
+
   footer { margin-top: 6rem; padding: 2.5rem 0 3.5rem; border-top: 1px solid var(--border); color: var(--dim); font-size: .92rem; }
   footer .wrap { display: flex; flex-wrap: wrap; gap: 1rem 2rem; justify-content: space-between; align-items: center; }
   footer nav { display: flex; gap: 1.4rem; flex-wrap: wrap; }
@@ -240,14 +302,14 @@
     .cards, .grid, .pillars { grid-template-columns: repeat(2, 1fr); }
     .show, .show.flip { grid-template-columns: 1fr; gap: 1.6rem; }
     .show.flip .copy { order: 0; }
-    .install { grid-template-columns: minmax(0, 1fr); }
+    .install, .choose { grid-template-columns: minmax(0, 1fr); }
     .facts { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 640px) {
     body { font-size: 16px; }
     .nav nav { display: none; }
     .lang { margin-left: auto; }
-    .cards, .grid, .pillars, .keys { grid-template-columns: 1fr; }
+    .cards, .grid, .pillars, .keys, .choose { grid-template-columns: 1fr; }
     .hero { padding-top: 3rem; }
     section { padding-top: 4rem; }
   }
@@ -264,6 +326,7 @@
       <a href="#tour"><span class="t" lang="en">Video</span><span class="t" lang="tr">Video</span></a>
       <a href="#features"><span class="t" lang="en">Features</span><span class="t" lang="tr">Özellikler</span></a>
       <a href="#screenshots"><span class="t" lang="en">Screenshots</span><span class="t" lang="tr">Ekran görüntüleri</span></a>
+      <a href="#compare"><span class="t" lang="en">Compare</span><span class="t" lang="tr">Karşılaştır</span></a>
       <a href="#install"><span class="t" lang="en">Install</span><span class="t" lang="tr">Kurulum</span></a>
       <a href="#shortcuts"><span class="t" lang="en">Shortcuts</span><span class="t" lang="tr">Kısayollar</span></a>
       <a href="https://github.com/tkinali/veloedit">GitHub</a>
@@ -525,6 +588,72 @@
         <h3><span class="t" lang="en">Light on your machine</span><span class="t" lang="tr">Makinene hafif</span></h3>
         <p><span class="t" lang="en">One native binary written in Rust. It uses your GPU when there is one and falls back to a software renderer when there is not. X11 and Wayland both work.</span><span class="t" lang="tr">Rust ile yazılmış tek bir yerel dosya. GPU'n varsa onu kullanır, yoksa yazılım çiziciye geçer. X11 ve Wayland ikisi de çalışır.</span></p>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ COMPARE ============================ -->
+<section id="compare">
+  <div class="wrap">
+    <div class="center">
+      <h2 id="compare-h"><span class="t" lang="en">How it compares</span><span class="t" lang="tr">Diğer editörlerle karşılaştırma</span></h2>
+      <p class="sub"><span class="t" lang="en">An honest look at VeloEdit next to the editors people usually weigh it against. VeloEdit is young: where another editor is the better choice, the table says so.</span><span class="t" lang="tr">VeloEdit'in, insanların genelde yanında tarttığı editörlerle dürüst bir karşılaştırması. VeloEdit genç: başka bir editör daha iyi bir seçimse tablo bunu söyler.</span></p>
+    </div>
+    <div class="compare" role="region" aria-labelledby="compare-h" tabindex="0">
+      <table>
+        <thead><tr><th scope="col"><span class="t" lang="en">Editor</span><span class="t" lang="tr">Editör</span></th><th scope="col" class="us">VeloEdit</th><th scope="col"><a href="https://www.sublimetext.com/">Sublime Text</a></th><th scope="col"><a href="https://code.visualstudio.com/">VS Code</a></th><th scope="col"><a href="https://kate-editor.org/">Kate</a></th><th scope="col"><a href="https://zed.dev/">Zed</a></th><th scope="col"><a href="https://helix-editor.com/">Helix</a></th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><span class="t" lang="en">License and price</span><span class="t" lang="tr">Lisans ve fiyat</span></th><td class="us"><span class="t" lang="en">Free, MIT</span><span class="t" lang="tr">Ücretsiz, MIT</span></td><td><span class="t" lang="en">Paid license; free to evaluate</span><span class="t" lang="tr">Ücretli lisans; deneme ücretsiz</span></td><td><span class="t" lang="en">Free (open-source core)</span><span class="t" lang="tr">Ücretsiz (açık kaynak çekirdek)</span></td><td><span class="t" lang="en">Free, open source</span><span class="t" lang="tr">Ücretsiz, açık kaynak</span></td><td><span class="t" lang="en">Free, open source</span><span class="t" lang="tr">Ücretsiz, açık kaynak</span></td><td><span class="t" lang="en">Free, open source</span><span class="t" lang="tr">Ücretsiz, açık kaynak</span></td></tr>
+          <tr><th scope="row"><span class="t" lang="en">Platforms</span><span class="t" lang="tr">Platformlar</span></th><td class="us"><span class="t" lang="en">Linux, Windows (preview)</span><span class="t" lang="tr">Linux, Windows (ön sürüm)</span></td><td>Linux, Windows, macOS</td><td>Linux, Windows, macOS</td><td>Linux, Windows, macOS</td><td>macOS, Linux, Windows</td><td>Linux, macOS, Windows</td></tr>
+          <tr><th scope="row"><span class="t" lang="en">Built with</span><span class="t" lang="tr">Yapısı</span></th><td class="us"><span class="t" lang="en">Rust, drawn on the GPU</span><span class="t" lang="tr">Rust, GPU ile çizilir</span></td><td><span class="t" lang="en">C++, its own interface</span><span class="t" lang="tr">C++, kendi arayüzü</span></td><td><span class="t" lang="en">Electron (web technology)</span><span class="t" lang="tr">Electron (web teknolojisi)</span></td><td>C++, Qt</td><td><span class="t" lang="en">Rust, drawn on the GPU</span><span class="t" lang="tr">Rust, GPU ile çizilir</span></td><td><span class="t" lang="en">Rust, runs in the terminal</span><span class="t" lang="tr">Rust, terminalde çalışır</span></td></tr>
+          <tr><th scope="row"><span class="t" lang="en">Plugins</span><span class="t" lang="tr">Eklentiler</span></th><td class="us"><span class="t" lang="en">None yet</span><span class="t" lang="tr">Henüz yok</span></td><td><span class="t" lang="en">Python plugins, Package Control</span><span class="t" lang="tr">Python eklentileri, Package Control</span></td><td><span class="t" lang="en">Huge extension marketplace</span><span class="t" lang="tr">Çok büyük eklenti mağazası</span></td><td><span class="t" lang="en">Plugins</span><span class="t" lang="tr">Eklentiler</span></td><td><span class="t" lang="en">Extensions</span><span class="t" lang="tr">Eklentiler</span></td><td><span class="t" lang="en">Not in stable builds yet</span><span class="t" lang="tr">Kararlı sürümlerde henüz yok</span></td></tr>
+          <tr><th scope="row"><span class="t" lang="en">Autocomplete and go to definition (LSP)</span><span class="t" lang="tr">Otomatik tamamlama ve tanıma git (LSP)</span></th><td class="us"><span class="t" lang="en">No: syntax highlighting only</span><span class="t" lang="tr">Yok: yalnızca renklendirme</span></td><td><span class="t" lang="en">Basic; full with an LSP package</span><span class="t" lang="tr">Temel; LSP paketiyle tam</span></td><td><span class="t" lang="en">Yes</span><span class="t" lang="tr">Var</span></td><td><span class="t" lang="en">Yes (LSP client)</span><span class="t" lang="tr">Var (LSP istemcisi)</span></td><td><span class="t" lang="en">Yes</span><span class="t" lang="tr">Var</span></td><td><span class="t" lang="en">Yes, built in</span><span class="t" lang="tr">Var, yerleşik</span></td></tr>
+          <tr><th scope="row"><span class="t" lang="en">Built-in hex editor</span><span class="t" lang="tr">Yerleşik hex editörü</span></th><td class="us"><span class="t" lang="en">Yes</span><span class="t" lang="tr">Var</span></td><td><span class="t" lang="en">Not built in</span><span class="t" lang="tr">Yerleşik değil</span></td><td><span class="t" lang="en">Not built in</span><span class="t" lang="tr">Yerleşik değil</span></td><td><span class="t" lang="en">Not built in</span><span class="t" lang="tr">Yerleşik değil</span></td><td><span class="t" lang="en">Not built in</span><span class="t" lang="tr">Yerleşik değil</span></td><td><span class="t" lang="en">Not built in</span><span class="t" lang="tr">Yerleşik değil</span></td></tr>
+          <tr><th scope="row"><span class="t" lang="en">Editing over SSH or a network mount</span><span class="t" lang="tr">SSH ya da ağ bağlantısı üzerinden düzenleme</span></th><td class="us"><span class="t" lang="en">Mounted folders (sshfs, SFTP); a dead mount never freezes the window</span><span class="t" lang="tr">Bağlanmış klasörler (sshfs, SFTP); ölü bağlantı pencereyi dondurmaz</span></td><td><span class="t" lang="en">Mounted folders, or the SFTP package</span><span class="t" lang="tr">Bağlanmış klasörler ya da SFTP paketi</span></td><td><span class="t" lang="en">The Remote-SSH extension</span><span class="t" lang="tr">Remote-SSH eklentisi</span></td><td><span class="t" lang="en">KDE network locations (sftp://)</span><span class="t" lang="tr">KDE ağ konumları (sftp://)</span></td><td><span class="t" lang="en">Built-in remote editing over SSH</span><span class="t" lang="tr">Yerleşik SSH ile uzaktan düzenleme</span></td><td><span class="t" lang="en">Run it on the remote machine</span><span class="t" lang="tr">Uzak makinede çalıştırılır</span></td></tr>
+          <tr><th scope="row"><span class="t" lang="en">Terminal, debugger, git panel</span><span class="t" lang="tr">Terminal, hata ayıklayıcı, git paneli</span></th><td class="us"><span class="t" lang="en">No: git marks and sidebar colors only</span><span class="t" lang="tr">Yok: yalnızca git işaretleri ve kenar çubuğu renkleri</span></td><td><span class="t" lang="en">No (Sublime Merge is a separate app)</span><span class="t" lang="tr">Yok (Sublime Merge ayrı bir uygulama)</span></td><td><span class="t" lang="en">Yes</span><span class="t" lang="tr">Var</span></td><td><span class="t" lang="en">A terminal panel</span><span class="t" lang="tr">Bir terminal paneli</span></td><td><span class="t" lang="en">Yes</span><span class="t" lang="tr">Var</span></td><td><span class="t" lang="en">No: use your own terminal</span><span class="t" lang="tr">Yok: kendi terminalini kullan</span></td></tr>
+          <tr><th scope="row"><span class="t" lang="en">Age</span><span class="t" lang="tr">Yaş</span></th><td class="us"><span class="t" lang="en">Young (0.2)</span><span class="t" lang="tr">Genç (0.2)</span></td><td><span class="t" lang="en">Mature</span><span class="t" lang="tr">Olgun</span></td><td><span class="t" lang="en">Mature</span><span class="t" lang="tr">Olgun</span></td><td><span class="t" lang="en">Mature</span><span class="t" lang="tr">Olgun</span></td><td><span class="t" lang="en">Newer, moving fast</span><span class="t" lang="tr">Daha yeni, hızla gelişiyor</span></td><td><span class="t" lang="en">Established</span><span class="t" lang="tr">Yerleşik</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note"><span class="t" lang="en">Written in November 2026 from each project's own pages; things change, so check before you decide. Only VeloEdit's speed was measured by us (under 100 ms to the first window): the table says what the others offer, not how fast they are. Found a mistake? Please <a href="https://github.com/tkinali/veloedit/issues">open an issue</a>.</span><span class="t" lang="tr">Kasım 2026'da her projenin kendi sayfalarından yazıldı; her şey değişir, karar vermeden önce kontrol et. Yalnızca VeloEdit'in hızını biz ölçtük (ilk pencereye 100 ms'nin altında): tablo diğerlerinin ne sunduğunu söyler, ne kadar hızlı olduklarını değil. Bir yanlış mı buldun? <a href="https://github.com/tkinali/veloedit/issues">Bir konu aç</a>, lütfen.</span></p>
+    <div class="choose">
+      <div class="panel">
+        <h3><span class="t" lang="en">Pick VeloEdit if you</span><span class="t" lang="tr">VeloEdit'i şu durumda seç</span></h3>
+        <ul>
+          <li><span class="t" lang="en">like Sublime Text's speed and keyboard-driven style, and want it free and open source.</span><span class="t" lang="tr">Sublime Text'in hızını ve klavye odaklı tarzını seviyor, ama bunu ücretsiz ve açık kaynak istiyorsan.</span></li>
+          <li><span class="t" lang="en">want unsaved tabs to come back after a restart or a crash.</span><span class="t" lang="tr">kaydedilmemiş sekmelerin yeniden başlatma ya da çökmeden sonra geri gelmesini istiyorsan.</span></li>
+          <li><span class="t" lang="en">edit over flaky network mounts and cannot have the window freeze.</span><span class="t" lang="tr">dengesiz ağ bağlantıları üzerinden düzenleme yapıyor ve pencerenin donmasını göze alamıyorsan.</span></li>
+          <li><span class="t" lang="en">open binary files and images now and then and want a hex view and a preview built in.</span><span class="t" lang="tr">ara sıra ikili dosya ve görsel açıyor, hex görünümü ile önizlemenin yerleşik olmasını istiyorsan.</span></li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3><span class="t" lang="en">Pick another editor if you</span><span class="t" lang="tr">Başka bir editörü şu durumda seç</span></h3>
+        <ul>
+          <li><span class="t" lang="en">need plugins, autocomplete and go to definition, a debugger or a built-in terminal (VS Code, Zed, Sublime Text with packages).</span><span class="t" lang="tr">eklentilere, otomatik tamamlamaya ve tanıma gitmeye, hata ayıklayıcıya ya da yerleşik terminale ihtiyaç duyuyorsan (VS Code, Zed, paketli Sublime Text).</span></li>
+          <li><span class="t" lang="en">use macOS (VeloEdit has no macOS build yet).</span><span class="t" lang="tr">macOS kullanıyorsan (VeloEdit'in henüz macOS sürümü yok).</span></li>
+          <li><span class="t" lang="en">work inside a terminal (Helix, Neovim).</span><span class="t" lang="tr">terminalin içinde çalışıyorsan (Helix, Neovim).</span></li>
+          <li><span class="t" lang="en">need column selection, replace in files or input methods for Chinese, Japanese and Korean: VeloEdit does not have them yet.</span><span class="t" lang="tr">sütun seçimine, dosyalarda değiştirmeye ya da Çince, Japonca, Korece giriş yöntemlerine ihtiyaç duyuyorsan: VeloEdit'te henüz yok.</span></li>
+          <li><span class="t" lang="en">want years of testing behind your editor: VeloEdit is at version 0.2.</span><span class="t" lang="tr">editörünün arkasında yılların testini istiyorsan: VeloEdit 0.2 sürümünde.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ QUESTIONS ============================ -->
+<section id="faq">
+  <div class="wrap">
+    <div class="center">
+      <h2><span class="t" lang="en">Questions</span><span class="t" lang="tr">Sık sorulanlar</span></h2>
+    </div>
+    <div class="faq">
+      <details><summary><span class="t" lang="en">Is VeloEdit a Sublime Text alternative?</span><span class="t" lang="tr">VeloEdit, Sublime Text'e bir alternatif mi?</span></summary><p><span class="t" lang="en">It is made in that spirit: the same keyboard-driven style (<kbd>Ctrl+P</kbd>, the command palette, <kbd>Ctrl+D</kbd> multi-cursor, indentation-based folding) and the same goal of starting instantly. It is not a clone, though. It does not run Sublime's plugins or themes, and it has no plugin system yet.</span><span class="t" lang="tr">O ruhla yapıldı: aynı klavye odaklı kullanım (<kbd>Ctrl+P</kbd>, komut paleti, <kbd>Ctrl+D</kbd> ile çoklu imleç, girintiye dayalı katlama) ve anında açılma hedefi. Yine de bir klon değil: Sublime'ın eklentilerini ya da temalarını çalıştırmaz, henüz bir eklenti sistemi de yok.</span></p></details>
+      <details><summary><span class="t" lang="en">Is it free? Does it collect data?</span><span class="t" lang="tr">Ücretsiz mi? Veri topluyor mu?</span></summary><p><span class="t" lang="en">It is free software under the MIT license: use it, change it and share it, also at work. There is no telemetry, no account and no advertising, and the editor never connects to the internet: it contains no HTTP or TLS code.</span><span class="t" lang="tr">MIT lisanslı özgür yazılım: kullanabilir, değiştirebilir, paylaşabilirsin; işyerinde de. Telemetri, hesap ve reklam yok; editör internete hiç bağlanmaz: içinde HTTP ya da TLS kodu yok.</span></p></details>
+      <details><summary><span class="t" lang="en">Which systems does it run on?</span><span class="t" lang="tr">Hangi sistemlerde çalışır?</span></summary><p><span class="t" lang="en">Linux on x86_64 and aarch64 (<code>.deb</code>, <code>.rpm</code>, <code>.AppImage</code> and a tarball) and Windows 10/11 x64 as a preview (a <code>.zip</code>, not code-signed, so SmartScreen asks once). There is no macOS build yet.</span><span class="t" lang="tr">x86_64 ve aarch64 Linux (<code>.deb</code>, <code>.rpm</code>, <code>.AppImage</code> ve tarball) ile ön sürüm olarak Windows 10/11 x64 (<code>.zip</code>; kod imzalı değil, SmartScreen bir kez sorar). Henüz macOS sürümü yok.</span></p></details>
+      <details><summary><span class="t" lang="en">Does it have plugins, autocomplete or a debugger?</span><span class="t" lang="tr">Eklenti, otomatik tamamlama ya da hata ayıklayıcı var mı?</span></summary><p><span class="t" lang="en">No. It highlights about 50 languages, folds code, finds and replaces with regular expressions and searches whole projects, but it does not talk to language servers. If you need that, VS Code, Zed or Sublime Text with packages are the better choice.</span><span class="t" lang="tr">Hayır. Yaklaşık 50 dili renklendirir, kodu katlar, düzenli ifadelerle bulup değiştirir ve projenin tamamında arar; ama dil sunucularıyla konuşmaz. Buna ihtiyacın varsa VS Code, Zed ya da paketli Sublime Text daha iyi bir seçim.</span></p></details>
+      <details><summary><span class="t" lang="en">What happens to my unsaved work?</span><span class="t" lang="tr">Kaydedilmemiş işime ne olur?</span></summary><p><span class="t" lang="en">It comes back. Quit, crash or reboot: the tabs, the open folders and the unsaved text are restored on the next start, and a text you never saved is named after its first line.</span><span class="t" lang="tr">Geri gelir. Kapatsan, çökse ya da yeniden başlatsan da sekmeler, açık klasörler ve kaydedilmemiş metin bir sonraki açılışta geri yüklenir; hiç kaydetmediğin bir metin ilk satırının adını alır.</span></p></details>
+      <details><summary><span class="t" lang="en">Can I edit files on a network drive or over SSH?</span><span class="t" lang="tr">Ağ sürücüsündeki ya da SSH üzerindeki dosyaları düzenleyebilir miyim?</span></summary><p><span class="t" lang="en">Yes, through a mounted folder (sshfs, SFTP, NFS, Samba). It was written for flaky connections: a mount that stops answering never freezes the window, and a reload from disk is an undo step that never empties your text.</span><span class="t" lang="tr">Evet, bağlanmış bir klasör üzerinden (sshfs, SFTP, NFS, Samba). Dengesiz bağlantılar düşünülerek yazıldı: yanıt vermeyen bir bağlantı pencereyi dondurmaz, diskten yeniden yükleme geri alınabilir bir adımdır ve metnini asla boşaltmaz.</span></p></details>
+      <details><summary><span class="t" lang="en">How do I report a bug or ask for a feature?</span><span class="t" lang="tr">Hatayı nasıl bildirir, özellik nasıl isterim?</span></summary><p><span class="t" lang="en">Open an issue on <a href="https://github.com/tkinali/veloedit/issues">GitHub</a>. Releases and their notes are on the <a href="https://github.com/tkinali/veloedit/releases">releases page</a>.</span><span class="t" lang="tr"><a href="https://github.com/tkinali/veloedit/issues">GitHub</a>'da bir konu (issue) aç. Sürümler ve notları <a href="https://github.com/tkinali/veloedit/releases">sürümler sayfasında</a>.</span></p></details>
     </div>
   </div>
 </section>
