@@ -3,6 +3,24 @@
 Every release has a section here; its text becomes the release notes on GitHub
 (see [RELEASING.md](RELEASING.md)). Newest first.
 
+## 0.2.1 - 2026-11-24
+
+### Added
+- **Git colors in the sidebar**, like in VS Code: in a git folder, a file that differs from the last
+  commit is colored and gets a letter at the right edge: yellow **M** (edited), green **U** (new) or
+  **A** (added to the index), red **!** (merge conflict). A folder shows a dot and the color of the
+  strongest change inside it, so a change in a closed folder is still visible.
+- A folder that holds several sites (such as `/var/www`) works too: every direct subfolder that has a
+  `.git` is its own repository, and its row shows the strongest change in it.
+- The colors follow your work: saving a file, opening a closed folder, and a `git commit`, `git add`
+  or `git checkout` made in a terminal. *Git: Refresh Gutter* in the command palette refreshes them
+  by hand. Without git, or outside a repository, nothing is colored.
+
+### Fixed
+- After a commit, checkout or `git add` made outside the editor, the git marks next to the line
+  numbers of the open files kept comparing with the old commit until *Git: Refresh Gutter* was used.
+  They now follow the new `HEAD` by themselves.
+
 ## 0.2.0 - 2026-11-22
 
 ### Added
