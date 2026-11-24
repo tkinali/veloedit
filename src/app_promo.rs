@@ -22,7 +22,7 @@ use serde_json::json;
 use iced::futures::executor::block_on;
 
 use super::{
-    tests::{booted, deliver_find_results, finish_search, open, scan_all, scratch, session_lock, type_query},
+    tests::{booted, deliver_find_results, deliver_git_status, finish_search, open, scan_all, scratch, session_lock, type_query},
     *,
 };
 
@@ -199,7 +199,23 @@ impl Reel {
             }
         }
         self.app = fresh;
+        self.git_status();
         self.snap(ms);
+    }
+
+    /// Delivers what the git workers would answer for the project (the sidebar's colors).
+    fn git_status(&mut self) {
+        deliver_git_status(&mut self.app, &self.root);
+    }
+
+    /// What `Ctrl+S` does, without the worker: the file is written and the app told so.
+    fn save(&mut self) {
+        let id = self.active();
+        let path = self.app.tabs.get(id).and_then(|t| t.path.clone()).expect("a saved file");
+        let (text, version) = self.app.text_to_save(id, &path).expect("a text tab");
+        fs::write(&path, &text).unwrap();
+        let result = Ok(crate::editor::text::hash_bytes(text.as_bytes()));
+        self.msg(Message::Saved { id, path, version, then_close: false, result });
     }
 
     fn active(&self) -> TabId {
@@ -535,12 +551,13 @@ fn promo_frames() {
         r.msg(Message::TreeClicked { path: root.join(d), is_dir: true });
         scan_all(&mut r.app, &root.join(d));
     }
+    r.git_status();
 
     // 1 -------------------------------------------------------------- open a file
     r.begin(
         "open",
-        "Opens in well under 100 ms: 50+ languages, minimap, git marks",
-        "100 ms'den kısa sürede açılır: 50+ dil, mini harita, git işaretleri",
+        "Opens in well under 100 ms: 50+ languages, minimap, git marks in the gutter",
+        "100 ms'den kısa sürede açılır: 50+ dil, mini harita, satır kenarında git işaretleri",
     );
     r.snap(900);
     r.point_at("main.rs", 700);
@@ -553,6 +570,40 @@ fn promo_frames() {
         r.snap(260);
     }
     r.snap(1200);
+
+    // 1b ------------------------------------------------------------- git colors in the sidebar
+    r.begin(
+        "git",
+        "Git colors: changed files turn yellow, new ones green, in the sidebar",
+        "Git renkleri: değişen dosya sarı, yeni dosya yeşil, kenar çubuğunda",
+    );
+    r.open_file("src/main.rs");
+    r.snap(1400);
+    // An edit that is saved: the file lights up, and the folder says "something in here changed".
+    r.point_at("style.css", 700);
+    r.click();
+    r.open_file("web/style.css");
+    r.snap(600);
+    let id = r.active();
+    r.msg(Message::Editor(id, Action::Move { motion: crate::editor::state::Motion::DocEnd, extend: false }));
+    r.type_text("\n.card { border-radius: 8px; }", 35);
+    r.snap(600);
+    r.keys("Ctrl+S", 1200);
+    r.save();
+    r.git_status();
+    r.snap(1500);
+    // A file that appears from somewhere else (a build, a checkout, a script): new, so green.
+    fs::write(r.root.join("app/Cache.php"), "<?php\n\nclass Cache {}\n").unwrap();
+    let app_dir = r.root.join("app");
+    scan_all(&mut r.app, &app_dir);
+    r.git_status();
+    r.snap(1800);
+    // Back to how the project was, for the scenes that follow.
+    fs::write(r.root.join("web/style.css"), STYLE_CSS).unwrap();
+    fs::remove_file(r.root.join("app/Cache.php")).unwrap();
+    scan_all(&mut r.app, &app_dir);
+    scan_all(&mut r.app, &r.root.join("web"));
+    r.git_status();
 
     // 2 -------------------------------------------------------------- quick open
     r.begin("quick-open", "Ctrl+P: fuzzy-open any file in the project", "Ctrl+P: projedeki herhangi bir dosyayı bulanık aramayla aç");
@@ -603,7 +654,7 @@ fn promo_frames() {
     r.click_in_text(line, col + 2);
     r.snap(1100);
     let id = r.active();
-    for _ in 0..6 {
+    for _ in 0..5 {
         r.keys("Ctrl+D", 700);
         r.msg(Message::Editor(id, Action::SelectNextOccurrence));
         r.snap(650);
@@ -627,7 +678,7 @@ fn promo_frames() {
         r.snap(210);
     }
     r.snap(900);
-    for _ in 0..3 {
+    for _ in 0..2 {
         r.keys("Enter", 600);
         r.msg(Message::FindNext);
         r.snap(700);
@@ -716,7 +767,7 @@ fn promo_frames() {
     r.msg(Message::Editor(id, Action::Insert(PAGE_HTML.into())));
     r.snap(400);
     r.color();
-    r.snap(2000);
+    r.snap(1500);
     r.point_at("HTML", 800);
     r.click();
     r.msg(Message::OpenSyntaxPicker);
@@ -727,15 +778,15 @@ fn promo_frames() {
     }
     r.snap(500);
     r.msg(Message::PaletteSubmit);
-    r.snap(1500);
+    r.snap(1200);
     r.msg(Message::SetSyntax(syntax::Syntax::Auto));
     r.color();
-    r.snap(1300);
+    r.snap(1100);
 
     // 11 ------------------------------------------------------------- indentation and line endings
     r.begin("convert", "Convert indentation and line endings in one step", "Girinti ve satır sonlarını tek adımda dönüştür");
     r.open_file("web/legacy.js");
-    r.snap(1700);
+    r.snap(1200);
     r.point_at("View", 700);
     r.click();
     r.msg(Message::OpenMenu(2));
@@ -744,7 +795,7 @@ fn promo_frames() {
     r.click();
     r.msg(Message::MenuPick(Box::new(Message::ConvertIndent { spaces: true })));
     r.color();
-    r.snap(1800);
+    r.snap(1400);
     r.point_at("View", 600);
     r.click();
     r.msg(Message::OpenMenu(2));
@@ -753,7 +804,7 @@ fn promo_frames() {
     r.click();
     r.msg(Message::MenuPick(Box::new(Message::SetLineEnding(Eol::CrLf))));
     r.color();
-    r.snap(2000);
+    r.snap(1500);
 
     // 12 ------------------------------------------------------------- hex and images
     r.begin("hex", "A hex editor and an image viewer, built in", "Hex editörü ve resim görüntüleyici hazır");
@@ -765,11 +816,11 @@ fn promo_frames() {
     // 13 ------------------------------------------------------------- hot exit
     r.begin("hot-exit", "Unsaved tabs come back after a restart", "Kaydedilmemiş sekmeler yeniden başlatınca geri gelir");
     r.msg(Message::NewFile);
-    r.type_text("call Ayşe about the invoice", 55);
+    r.type_text("call Ayşe about the invoice", 35);
     r.msg(Message::NewFile);
-    r.type_text("SELECT * FROM orders WHERE paid = 0;", 45);
+    r.type_text("SELECT * FROM orders WHERE paid = 0;", 28);
     r.msg(Message::NewFile);
-    r.type_text("ideas: dark mode for the docs site", 45);
+    r.type_text("ideas: dark mode for the docs site", 28);
     r.color();
     r.snap(1500);
     r.keys("Ctrl+Q", 1500);

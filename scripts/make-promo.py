@@ -46,7 +46,7 @@ TEXT = {
         "sub": "Written in Rust  ·  Linux and Windows",
         "recap_title": "And much more",
         "chips": [
-            "Hot exit: nothing unsaved is lost", "One window for every file", "Git change marks in the gutter",
+            "Hot exit: nothing unsaved is lost", "One window for every file", "Git marks in the gutter, colors in the sidebar",
             "Safe on network mounts", "Drag tabs to reorder", "External change detection", "Preview tabs",
             "Light and dark themes", "50+ languages", "Trim trailing whitespace on save", "Hex editor", "Image viewer",
         ],
@@ -63,7 +63,7 @@ TEXT = {
         "sub": "Rust ile yazıldı  ·  Linux ve Windows",
         "recap_title": "Ve daha fazlası",
         "chips": [
-            "Sıcak çıkış: kaydedilmemiş bir şey kaybolmaz", "Her dosya için tek pencere", "Kenarda git değişiklik işaretleri",
+            "Sıcak çıkış: kaydedilmemiş bir şey kaybolmaz", "Her dosya için tek pencere", "Kenarda ve kenar çubuğunda git renkleri",
             "Ağ bağlantılı disklerde güvenli", "Sekmeleri sürükleyerek sırala", "Dış değişiklik algılama", "Önizleme sekmeleri",
             "Açık ve koyu temalar", "50+ dil", "Kaydederken satır sonu boşluklarını sil", "Hex editörü", "Resim görüntüleyici",
         ],
@@ -586,6 +586,9 @@ def main():
                 print(path)
             continue
         target = out / f"veloedit-tour-{lang}{'-music' if music else ''}.mp4"
+        if music and total > music[0] + 0.05:
+            # (`-shortest` would end the video with the track and drop the closing cards.)
+            sys.exit(f"the tour ({total:.1f} s) is longer than the music ({music[0]:.1f} s): shorten a scene")
         n = int(total * FPS)
         print(f"{lang}: {total:.1f} s, {n} frames -> {target}", flush=True)
         audio = ["-an"]
