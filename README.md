@@ -29,6 +29,12 @@ unsaved work across restarts, and never blocks the UI on disk, git or highlighti
 - **Project tools**: multi-root folder sidebar (resizable, file-type badges, right-click menu with
   new/rename/trash/copy path), `Ctrl+P` fuzzy file open, `Ctrl+Shift+P` command palette,
   `Ctrl+Shift+F` find in files with a `*.php, !vendor` filter and folder scope.
+- **Git colors in the sidebar**: in a git folder, files changed since the last commit are colored
+  like in VS Code: yellow `M` (edited), green `U` (new) / `A` (staged), red `!` (conflict); a folder
+  shows a dot and the color of the strongest change inside it. A folder that holds several sites
+  (such as `/var/www`) works too: every direct subfolder with a `.git` is its own repository, and
+  its row shows the strongest change in it. It follows saves, a `git commit` or `git checkout`
+  made in a terminal, and *Git: Refresh Gutter* in the palette forces it.
 - **Markdown preview** next to the source, with real wrapping tables.
 - **Split view**: right-click a tab → *Split Right* / *Split Down* shows the same file twice, each pane with its own name bar, scroll position and caret, edits and undo shared. Tabs can be dragged to reorder them.
 - **Hot exit**: tabs, folders and *unsaved drafts* come back exactly as you left them.

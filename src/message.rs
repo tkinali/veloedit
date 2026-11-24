@@ -8,7 +8,7 @@ use std::{
 use iced::keyboard;
 
 use crate::{
-    git::GitMarks,
+    git::{self, GitMarks},
     palette::{IndexedFile, Mode},
     syntax::{Lang, LineSpans, ParseState, Syntax},
 };
@@ -110,6 +110,12 @@ pub enum Message {
     GitBase { id: TabId, path: PathBuf, base: Option<Arc<String>> },
     GitMarksReady { id: TabId, marks: Arc<GitMarks> },
     RefreshGit,
+    /// The repository folders below a workspace root were found.
+    GitDiscovered { root: PathBuf, dirs: Vec<PathBuf> },
+    /// `git status` of one repository arrived (`None`: not a repository, or no answer).
+    GitStatus { dir: PathBuf, result: Option<Arc<git::status::Fetched>> },
+    /// The pause before a repeated git job is over.
+    GitDue(git::status::Job),
 
     // --- syntax ---
     HighlightTick,

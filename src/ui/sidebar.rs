@@ -14,7 +14,11 @@ use super::{
     theme::{self, C},
     virtual_list,
 };
-use crate::{message::Message, workspace::{Row, Workspace}};
+use crate::{
+    git::status::{Change, Tree},
+    message::Message,
+    workspace::{Row, Workspace},
+};
 
 pub const DEFAULT_WIDTH: f32 = 260.0;
 pub const MIN_WIDTH: f32 = 140.0;
@@ -33,7 +37,7 @@ pub struct Scroll {
     pub height: f32,
 }
 
-pub fn view<'a>(c: C, ws: &'a Workspace, active: Option<&Path>, scroll: Scroll, width: f32) -> Element<'a, Message> {
+pub fn view<'a>(c: C, ws: &'a Workspace, repo: &Tree, active: Option<&Path>, scroll: Scroll, width: f32) -> Element<'a, Message> {
     let header = container(
         row![
             text("FOLDERS").size(11).color(c.dim),
@@ -62,7 +66,7 @@ pub fn view<'a>(c: C, ws: &'a Workspace, active: Option<&Path>, scroll: Scroll, 
         .center(Length::Fill)
         .into()
     } else {
-        tree(c, ws, active, scroll)
+        tree(c, ws, repo, active, scroll)
     };
 
     let panel = container(column![header, body])
@@ -82,13 +86,13 @@ pub fn view<'a>(c: C, ws: &'a Workspace, active: Option<&Path>, scroll: Scroll, 
     row![panel, handle].into()
 }
 
-fn tree<'a>(c: C, ws: &'a Workspace, active: Option<&Path>, scroll: Scroll) -> Element<'a, Message> {
+fn tree<'a>(c: C, ws: &'a Workspace, repo: &Tree, active: Option<&Path>, scroll: Scroll) -> Element<'a, Message> {
     let rows = ws.rows();
     let w = virtual_list::window(rows.len(), ROW_H, scroll.y, scroll.height, 4);
 
     let mut col = Column::new().push(space().height(w.top));
     for r in &rows[w.start..w.end] {
-        col = col.push(tree_row(c, r, active));
+        col = col.push(tree_row(c, r, repo.change(&r.node.entry.path), active));
     }
     col = col.push(space().height(w.bottom));
 
@@ -102,7 +106,7 @@ fn tree<'a>(c: C, ws: &'a Workspace, active: Option<&Path>, scroll: Scroll) -> E
         .into()
 }
 
-fn tree_row<'a>(c: C, r: &Row<'a>, active: Option<&Path>) -> Element<'a, Message> {
+fn tree_row<'a>(c: C, r: &Row<'a>, change: Option<Change>, active: Option<&Path>) -> Element<'a, Message> {
     let node = r.node;
     let entry = &node.entry;
     let is_root = r.depth == 0;
@@ -117,7 +121,9 @@ fn tree_row<'a>(c: C, r: &Row<'a>, active: Option<&Path>) -> Element<'a, Message
     } else {
         Font::DEFAULT
     };
-    let color = if entry.is_dir { c.text_bright } else { c.text };
+    // Changed since the last commit: yellow (edited), green (new), red (conflict).
+    let tint = change.map(|ch| change_color(c, ch));
+    let color = tint.unwrap_or(if entry.is_dir { c.text_bright } else { c.text });
 
     let mut label = row![space().width(r.depth as f32 * 12.0 + 4.0), text(arrow).size(10).width(12).color(c.dim)];
     if !entry.is_dir {
@@ -129,10 +135,17 @@ fn tree_row<'a>(c: C, r: &Row<'a>, active: Option<&Path>) -> Element<'a, Message
                 .align_x(Alignment::End),
         );
     }
-    let label = label.push(text(entry.name.as_str()).size(theme::FONT_SIZE).font(font).color(color).wrapping(Wrapping::None))
-    .spacing(4)
-    .height(Length::Fill)
-    .align_y(Alignment::Center);
+    // The name takes what is left and is cut at its end, so the letter on the right always shows.
+    let name = container(text(entry.name.as_str()).size(theme::FONT_SIZE).font(font).color(color).wrapping(Wrapping::None))
+        .width(Length::Fill)
+        .clip(true);
+    let mut label = label.push(name);
+    if let (Some(ch), Some(tint)) = (change, tint) {
+        // Files get a letter (M, U, A, !), folders a dot: "something inside changed".
+        let mark = if entry.is_dir { "\u{25CF}" } else { ch.letter() };
+        label = label.push(text(mark).size(if entry.is_dir { 8 } else { 10 }).font(Font { weight: Weight::Bold, ..Font::DEFAULT }).color(tint));
+    }
+    let label = label.spacing(4).width(Length::Fill).height(Length::Fill).align_y(Alignment::Center);
 
     let selected = !entry.is_dir && active == Some(entry.path.as_path());
     // Fixed-height rows: a long name is cut at the edge, never wrapped into the next row.
@@ -163,4 +176,13 @@ fn tree_row<'a>(c: C, r: &Row<'a>, active: Option<&Path>) -> Element<'a, Message
     mouse_area(content)
         .on_right_press(Message::TreeContext { path: entry.path.clone(), is_dir: entry.is_dir, is_root })
         .into()
+}
+
+/// The color of a changed name in the sidebar (the same colors as the git marks in the gutter).
+fn change_color(c: C, change: Change) -> iced::Color {
+    match change {
+        Change::Modified => c.dirty,
+        Change::Untracked | Change::Added => c.hex_ascii,
+        Change::Conflict => c.danger,
+    }
 }

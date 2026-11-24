@@ -27,7 +27,7 @@ use crate::{
     project_search,
     search,
     settings::{self, Settings},
-    git::{self, Base, GitState},
+    git::{self, Base, GitState, status::Job},
     syntax::{self, Lang, Syntax},
     session::{self, SessionFile, Snapshot, TabKind, TabRecord},
     ui::{
@@ -126,6 +126,8 @@ struct TabDrag {
 
 pub struct App {
     ws: Workspace,
+    /// Which files of the open folders differ from `HEAD` (sidebar colors).
+    repo: git::status::Tree,
     tabs: TabSet,
     sidebar_visible: bool,
     sidebar_width: f32,
@@ -195,6 +197,7 @@ impl App {
         let session = session::load();
         let mut app = App {
             ws: Workspace::default(),
+            repo: git::status::Tree::default(),
             tabs: TabSet::default(),
             sidebar_visible: session.sidebar_visible,
             sidebar_width: session.sidebar_width.clamp(sidebar::MIN_WIDTH, sidebar::MAX_WIDTH),
@@ -251,6 +254,7 @@ impl App {
             // on a worker, the window does not wait for it.)
             if fsx::is_dir(root) != Some(false) && app.ws.add_root(root.clone(), expanded.contains(root)) {
                 tasks.push(scan(root.clone()));
+                tasks.push(app.git_jobs([Job::Discover(root.clone())]));
             }
         }
         app.ws.expand_later(
@@ -266,7 +270,8 @@ impl App {
             let path = fsx::canonical(&arg);
             if fsx::is_dir(&path) == Some(true) {
                 if app.ws.add_root(path.clone(), true) {
-                    tasks.push(scan(path));
+                    tasks.push(scan(path.clone()));
+                    tasks.push(app.git_jobs([Job::Discover(path)]));
                 }
             } else {
                 tasks.push(open_task(path));
@@ -503,7 +508,7 @@ impl App {
                 if self.ws.add_root(path.clone(), true) {
                     self.index_stale = true;
                     self.touch();
-                    return scan(path);
+                    return Task::batch([scan(path.clone()), self.git_jobs([Job::Discover(path)])]);
                 }
                 Task::none()
             }
@@ -546,6 +551,7 @@ impl App {
             }
             Message::RemoveRoot(path) => {
                 self.ws.remove_root(&path);
+                self.repo.forget(&path);
                 self.index_stale = true;
                 self.touch();
                 Task::none()
@@ -560,7 +566,9 @@ impl App {
                         return Task::none();
                     }
                     if self.ws.toggle(&path) {
-                        return scan(path);
+                        // (Nothing watched the folder while it was closed: its colors may be stale.)
+                        let jobs = self.git_jobs_for(std::slice::from_ref(&path));
+                        return Task::batch([scan(path), jobs]);
                     }
                     Task::none()
                 } else {
@@ -1605,13 +1613,45 @@ impl App {
                 if let Some(Doc::Text(doc)) = self.tabs.active_id().and_then(|id| self.tabs.get_mut(id)).map(|t| &mut t.doc) {
                     doc.git = GitState::default();
                 }
-                self.start_analysis()
+                let mut jobs = Vec::new();
+                for root in self.ws.root_paths() {
+                    jobs.extend(self.repo.repos_of(&root).iter().cloned().map(Job::Status));
+                    jobs.push(Job::Discover(root));
+                }
+                let git = self.git_jobs(jobs);
+                Task::batch([self.start_analysis(), git])
             }
+            Message::GitDiscovered { root, dirs } => {
+                let again = self.repo.done(&Job::Discover(root.clone()));
+                if !self.ws.root_paths().contains(&root) {
+                    return self.git_pump(); // the folder was closed meanwhile
+                }
+                let fresh = self.repo.set_found(&root, dirs);
+                let started = self.git_jobs(fresh.into_iter().map(Job::Status));
+                if again { Task::batch([started, git_later(Job::Discover(root))]) } else { started }
+            }
+            Message::GitStatus { dir, result } => {
+                let job = Job::Status(dir.clone());
+                let again = self.repo.done(&job);
+                let mut later = Task::none();
+                if self.ws.root_paths().iter().any(|r| dir.starts_with(r)) {
+                    self.repo.set_status(&dir, result);
+                    if again {
+                        later = git_later(job);
+                    }
+                }
+                Task::batch([self.git_pump(), later])
+            }
+            Message::GitDue(job) => self.git_jobs([job]),
             Message::GitBase { id, path, base } => {
                 if let Some(tab) = self.tabs.get_mut(id).filter(|t| t.path.as_deref() == Some(path.as_path())) {
                     if let Doc::Text(doc) = &mut tab.doc {
+                        // A new base replaces the marks when its diff is ready: until then the
+                        // old ones stay, so a commit made elsewhere does not blink the gutter.
+                        if base.is_none() {
+                            doc.git.marks = None;
+                        }
                         doc.git.base = base.map_or(Base::Absent, Base::Ready);
-                        doc.git.marks = None;
                         doc.git.requested = u64::MAX;
                         doc.git.in_flight = false;
                     }
@@ -2168,13 +2208,76 @@ impl App {
             .tabs
             .iter()
             .filter_map(|t| t.path.as_deref()?.parent().map(Path::to_path_buf));
-        watcher::WatchSet::new(self.ws.watched_dirs().into_iter().chain(parents))
+        // The repositories' own folders too: a commit or a checkout elsewhere rewrites the
+        // index there, and the sidebar colors have to follow.
+        let repos = self.repo.git_dirs().map(Path::to_path_buf);
+        watcher::WatchSet::new(self.ws.watched_dirs().into_iter().chain(parents).chain(repos))
+    }
+
+    /// Asks for git jobs and starts the ones that may run now (see [`git::status::Tree`]).
+    fn git_jobs(&mut self, jobs: impl IntoIterator<Item = Job>) -> Task<Message> {
+        for job in jobs {
+            self.repo.request(job);
+        }
+        self.git_pump()
+    }
+
+    fn git_pump(&mut self) -> Task<Message> {
+        Task::batch(self.repo.start().into_iter().map(|job| match job {
+            Job::Discover(root) => {
+                let asked = root.clone();
+                Task::perform(git::status::discover_bounded(root), move |dirs| Message::GitDiscovered { root: asked.clone(), dirs })
+            }
+            Job::Status(dir) => {
+                let asked = dir.clone();
+                Task::perform(git::status::fetch_bounded(dir), move |result| Message::GitStatus { dir: asked.clone(), result })
+            }
+        }))
+    }
+
+    /// The git jobs that follow from changes at `paths`: a fresh status of each repository they
+    /// are in (and only of those), or a new look for repositories when a root has none yet or
+    /// something appeared next to them.
+    fn git_jobs_for(&mut self, paths: &[PathBuf]) -> Task<Message> {
+        let mut jobs: Vec<Job> = Vec::new();
+        for p in paths {
+            for root in self.ws.root_paths().into_iter().filter(|r| p.starts_with(r)) {
+                for job in self.repo.jobs_for_change(&root, p) {
+                    if !jobs.contains(&job) {
+                        jobs.push(job);
+                    }
+                }
+            }
+        }
+        self.git_jobs(jobs)
     }
 
     /// Debounced batch of changed paths from the watcher.
     fn fs_changed(&mut self, paths: Vec<PathBuf>) -> Task<Message> {
-        self.index_stale = true;
         let mut tasks = Vec::new();
+
+        // Sidebar colors: the repositories that contain a change, or that moved on (a commit,
+        // a checkout or a `git add` elsewhere rewrites a file in their own folder).
+        let moved: Vec<PathBuf> = paths.iter().filter_map(|p| self.repo.repo_event(p).map(Path::to_path_buf)).collect();
+        let changed: Vec<PathBuf> = paths.iter().filter(|p| !self.repo.in_repo_dir(p)).cloned().collect();
+        tasks.push(self.git_jobs(moved.iter().cloned().map(Job::Status)));
+        tasks.push(self.git_jobs_for(&changed));
+        if !moved.is_empty() {
+            // A commit, checkout or `git add` outside: the open files' gutters compare with the
+            // new `HEAD`.
+            for tab in self.tabs.iter_mut() {
+                if let Doc::Text(doc) = &mut tab.doc {
+                    doc.git.base = Base::NotLoaded;
+                }
+            }
+            tasks.push(self.start_analysis());
+        }
+        // What git writes inside its own folder is not a change of the project.
+        let paths = changed;
+        if paths.is_empty() {
+            return Task::batch(tasks);
+        }
+        self.index_stale = true;
 
         // Sidebar: rescan every shown directory that contains a changed path
         // (or is itself the changed path).
@@ -2577,7 +2680,7 @@ impl App {
             if self.ws.add_root(path.clone(), true) {
                 self.index_stale = true;
                 self.touch();
-                return scan(path);
+                return Task::batch([scan(path.clone()), self.git_jobs([Job::Discover(path)])]);
             }
             Task::none()
         } else {
@@ -2895,7 +2998,7 @@ impl App {
 
         let body: Element<'_, Message> = if self.sidebar_visible {
             let active_path = active.and_then(|t| t.path.as_deref());
-            row![sidebar::view(c, &self.ws, active_path, self.sidebar_scroll, self.sidebar_width), main].into()
+            row![sidebar::view(c, &self.ws, &self.repo, active_path, self.sidebar_scroll, self.sidebar_width), main].into()
         } else {
             main.into()
         };
@@ -3440,3 +3543,9 @@ mod tests;
 #[cfg(test)]
 #[path = "app_promo.rs"]
 mod promo;
+
+/// A git job again after a short pause (a build writing files all the time must not keep `git`
+/// busy).
+fn git_later(job: Job) -> Task<Message> {
+    Task::perform(fsx::off_thread(|| std::thread::sleep(Duration::from_millis(400))), move |_| Message::GitDue(job.clone()))
+}

@@ -6,6 +6,8 @@
 
 use std::{path::Path, process::{Command, Stdio}, sync::Arc};
 
+pub mod status;
+
 use similar::{DiffOp, TextDiff};
 
 /// Gutter marker for one line.

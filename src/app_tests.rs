@@ -2917,3 +2917,209 @@ fn view_menu_converts_indentation_and_line_endings_as_one_undo_step() {
     let e = app.menu_entries(2);
     assert!(e.iter().any(|e| matches!(e, Entry::Item { label, enabled: true, .. } if label == "Convert Indentation to Tabs")));
 }
+
+/// A git repository in `dir` with `first` committed. `None`: this machine has no git.
+fn git_repo(dir: &Path, first: &[(&str, &str)]) -> Option<()> {
+    let run = |args: &[&str]| {
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"])
+            .args(args)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .ok()
+            .filter(|s| s.success())
+    };
+    let _ = fs::remove_dir_all(dir);
+    fs::create_dir_all(dir).unwrap();
+    run(&["init", "-q"])?;
+    for (name, text) in first {
+        let file = dir.join(name);
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(file, text).unwrap();
+    }
+    run(&["add", "."])?;
+    run(&["commit", "-q", "-m", "first"])?;
+    Some(())
+}
+
+/// What the app's git workers would answer for the workspace root `root`: which repositories it
+/// has, and the status of each.
+pub(super) fn deliver_git_status(app: &mut App, root: &Path) {
+    let dirs = block_on(git::status::discover_bounded(root.to_path_buf()));
+    drop(app.update(Message::GitDiscovered { root: root.to_path_buf(), dirs: dirs.clone() }));
+    for dir in dirs {
+        let result = block_on(git::status::fetch_bounded(dir.clone()));
+        drop(app.update(Message::GitStatus { dir, result }));
+    }
+}
+
+#[test]
+fn the_sidebar_colors_what_changed_since_the_last_commit_and_says_so_in_a_letter() {
+    let _turn = session_lock();
+    let root = scratch().join("git-sidebar");
+    let long = "adim12-yeniden-baslatma-21kasim-ve-daha-da-uzun-bir-dosya-adi.txt";
+    if git_repo(&root, &[(long, "1\n"), ("keep.txt", "1\n"), ("sub/deep.txt", "1\n")]).is_none() {
+        return; // no git here
+    }
+    fs::write(root.join(long), "2\n").unwrap(); // edited
+    fs::write(root.join("fresh.txt"), "new\n").unwrap(); // not tracked yet
+    fs::write(root.join("sub/deep.txt"), "2\n").unwrap(); // edited, in a closed folder
+
+    let mut app = booted(vec![root.clone()]);
+    scan_all(&mut app, &root);
+    assert_eq!(app.repo.change(&root.join(long)), None, "nothing is known before git answered");
+    deliver_git_status(&mut app, &root);
+
+    use crate::git::status::Change::*;
+    assert_eq!(app.repo.change(&root.join(long)), Some(Modified));
+    assert_eq!(app.repo.change(&root.join("fresh.txt")), Some(Untracked));
+    assert_eq!(app.repo.change(&root.join("sub")), Some(Modified), "a folder shows what is inside it");
+    assert_eq!(app.repo.change(&root.join("keep.txt")), None);
+    assert_eq!(app.repo.change(&root), None, "the root itself stays plain");
+
+    // The letters sit at the right edge of the sidebar, also behind a name much too long for it.
+    let width = sidebar::DEFAULT_WIDTH;
+    let mut ui = iced_test::simulator(app.view());
+    let m = ui.find("M").expect("an M for the edited file").bounds();
+    let u = ui.find("U").expect("a U for the new file").bounds();
+    let dot = ui.find("\u{25CF}").expect("a dot for the folder with a change inside").bounds();
+    for (what, b) in [("M", m), ("U", u), ("dot", dot)] {
+        assert!(b.x > width - 40.0 && b.x + b.width < width, "{what} is not at the sidebar's right edge: {b:?}");
+    }
+    assert!(ui.find("keep.txt").is_ok());
+    drop(ui);
+    shot(&app, "git-sidebar");
+
+    // Committed elsewhere: the next status is clean and the colors are gone.
+    for args in [&["add", "."][..], &["commit", "-q", "-m", "second"][..]] {
+        let ok = std::process::Command::new("git")
+            .arg("-C")
+            .arg(&root)
+            .args(["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"])
+            .args(args)
+            .stdout(std::process::Stdio::null())
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok);
+    }
+    deliver_git_status(&mut app, &root);
+    assert_eq!(app.repo.change(&root.join(long)), None);
+    assert_eq!(app.repo.change(&root.join("sub")), None);
+    let mut ui = iced_test::simulator(app.view());
+    assert!(ui.find("M").is_err() && ui.find("U").is_err(), "no letters once everything is committed");
+}
+
+#[test]
+fn a_folder_that_is_not_a_repository_has_no_colors_and_git_moving_on_is_noticed() {
+    let _turn = session_lock();
+    let root = scratch().join("git-commit-elsewhere");
+    if git_repo(&root, &[("a.txt", "1\n")]).is_none() {
+        return;
+    }
+    let mut app = booted(vec![root.clone()]);
+    scan_all(&mut app, &root);
+    open(&mut app, &root.join("a.txt"));
+    deliver_git_status(&mut app, &root);
+    assert!(app.repo.git_dirs().any(|d| d.ends_with(".git")), "the repository's own folder is watched");
+
+    // What git writes inside `.git` is not a change of the project (no new file index) ...
+    app.index_stale = false;
+    drop(app.update(Message::FsChanged(vec![root.join(".git/objects/ab"), root.join(".git/index.lock")])));
+    assert!(!app.index_stale);
+    // ... but a moved index or HEAD sends the open file's gutter back to the new `HEAD`.
+    if let Some(Doc::Text(doc)) = app.tabs.active_mut().map(|t| &mut t.doc) {
+        doc.git.base = Base::Ready(Arc::new("old\n".into()));
+    }
+    drop(app.update(Message::FsChanged(vec![root.join(".git/index")])));
+    assert!(!app.index_stale, "still not a change of the project");
+    assert!(matches!(text_doc(&app, app.tabs.active_id().unwrap()).git.base, Base::Loading), "the base is read again");
+
+    // A real change in the folder does stale the file index.
+    drop(app.update(Message::FsChanged(vec![root.join("a.txt")])));
+    assert!(app.index_stale);
+
+    // Outside any repository nothing is colored.
+    let plain = scratch().join("git-plain");
+    let _ = fs::remove_dir_all(&plain);
+    fs::create_dir_all(&plain).unwrap();
+    fs::write(plain.join("x.txt"), "x").unwrap();
+    if !plain.ancestors().any(|a| a.join(".git").exists()) {
+        let mut app = booted(vec![plain.clone()]);
+        scan_all(&mut app, &plain);
+        deliver_git_status(&mut app, &plain);
+        assert_eq!(app.repo.change(&plain.join("x.txt")), None);
+    }
+}
+
+#[test]
+fn a_folder_of_sites_colors_each_sites_own_changes_and_refreshes_only_the_site_that_changed() {
+    use crate::git::status::{Change::*, Job};
+    let _turn = session_lock();
+    let www = scratch().join("git-sites");
+    let _ = fs::remove_dir_all(&www);
+    fs::create_dir_all(&www).unwrap();
+    for (site, files) in [("a.loc", vec![("src/x.php", "1\n"), ("keep.php", "1\n")]), ("b.loc", vec![("index.php", "1\n")])] {
+        if git_repo(&www.join(site), &files).is_none() {
+            return; // no git here
+        }
+    }
+    fs::create_dir_all(www.join("plain")).unwrap();
+    fs::write(www.join("plain/note.txt"), "x\n").unwrap();
+    fs::write(www.join("a.loc/src/x.php"), "2\n").unwrap(); // site a: edited
+    fs::write(www.join("b.loc/new.php"), "new\n").unwrap(); // site b: a new file
+
+    let mut app = booted(vec![www.clone()]);
+    scan_all(&mut app, &www);
+    deliver_git_status(&mut app, &www);
+
+    assert_eq!(app.repo.change(&www.join("a.loc/src/x.php")), Some(Modified));
+    assert_eq!(app.repo.change(&www.join("a.loc/src")), Some(Modified));
+    assert_eq!(app.repo.change(&www.join("b.loc/new.php")), Some(Untracked));
+    assert_eq!(app.repo.change(&www.join("a.loc/keep.php")), None);
+    assert_eq!(app.repo.change(&www.join("plain/note.txt")), None, "not in any repository");
+    assert_eq!(app.repo.change(&www.join("a.loc")), Some(Modified), "a site's folder shows its strongest change");
+    assert_eq!(app.repo.change(&www.join("b.loc")), Some(Untracked));
+    assert_eq!(app.repo.change(&www), None);
+    assert_eq!(app.repo.git_dirs().count(), 2, "both sites' git folders are watched");
+
+    // Collapsed, each site's row shows the dot in its color; the folder that is no repository does not.
+    let width = sidebar::DEFAULT_WIDTH;
+    let mut ui = iced_test::simulator(app.view());
+    let dot = ui.find("\u{25CF}").expect("a dot for a changed site").bounds();
+    assert!(dot.x > width - 40.0 && dot.x + dot.width < width, "{dot:?}");
+    drop(ui);
+    shot(&app, "git-sites");
+
+    // A file saved in site a asks for a new status of site a alone.
+    drop(app.update(Message::FsChanged(vec![www.join("a.loc/src/x.php")])));
+    assert_eq!(app.repo.pending(), vec![Job::Status(www.join("a.loc"))]);
+    deliver_git_status(&mut app, &www);
+    assert!(app.repo.pending().is_empty());
+    // A commit in site b (its index moves) asks for site b alone, and for nothing else.
+    drop(app.update(Message::FsChanged(vec![www.join("b.loc/.git/index")])));
+    assert_eq!(app.repo.pending(), vec![Job::Status(www.join("b.loc"))]);
+    deliver_git_status(&mut app, &www);
+    // A file in a folder that is no repository changes nothing; a new folder next to the sites
+    // makes the app look for repositories again.
+    drop(app.update(Message::FsChanged(vec![www.join("plain/note.txt")])));
+    assert!(app.repo.pending().is_empty());
+    drop(app.update(Message::FsChanged(vec![www.join("c.loc")])));
+    assert_eq!(app.repo.pending(), vec![Job::Discover(www.clone())]);
+
+    // The new site is there (cloned meanwhile): its colors come with the next look.
+    if git_repo(&www.join("c.loc"), &[("z.php", "1\n")]).is_some() {
+        fs::write(www.join("c.loc/z.php"), "2\n").unwrap();
+        deliver_git_status(&mut app, &www);
+        assert_eq!(app.repo.change(&www.join("c.loc/z.php")), Some(Modified));
+        assert_eq!(app.repo.change(&www.join("a.loc/src/x.php")), Some(Modified), "the others are still colored");
+    }
+
+    // Closing the root takes every site's colors away.
+    drop(app.update(Message::RemoveRoot(www.clone())));
+    assert_eq!(app.repo.change(&www.join("a.loc/src/x.php")), None);
+    assert_eq!(app.repo.git_dirs().count(), 0);
+}
