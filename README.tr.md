@@ -2,6 +2,7 @@
 
 Sublime Text mantığında, Rust ile yazılmış hızlı, hafif, GPU hızlandırmalı Linux metin editörü.
 Ayrıntılı İngilizce açıklama: [README.md](README.md). Mimari notlar (Türkçe): [ARCHITECTURE.md](ARCHITECTURE.md).
+**[100 saniyelik tanıtım videosu](https://tkinali.github.io/veloedit/#tour)**
 
 ## Kurulum
 

@@ -148,6 +148,11 @@
   .window img { width: 100%; }
   a.zoom { cursor: zoom-in; display: block; }
 
+  /* ---- video ---- */
+  .video { max-width: 1100px; margin: 0 auto; border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); background: #0b0d12; }
+  .video video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; }
+  .credit { margin: 1rem 0 0; text-align: center; }
+
   /* ---- facts ---- */
   .facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 4rem 0 0; background: var(--border); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
   .facts div { background: var(--surface-2); padding: 1.4rem 1rem; text-align: center; }
@@ -256,6 +261,7 @@
   <div class="wrap nav">
     <a class="brand" href="#top"><img src="icon-128.png" width="28" height="28" alt="">VeloEdit</a>
     <nav aria-label="Main">
+      <a href="#tour"><span class="t" lang="en">Video</span><span class="t" lang="tr">Video</span></a>
       <a href="#features"><span class="t" lang="en">Features</span><span class="t" lang="tr">Özellikler</span></a>
       <a href="#screenshots"><span class="t" lang="en">Screenshots</span><span class="t" lang="tr">Ekran görüntüleri</span></a>
       <a href="#install"><span class="t" lang="en">Install</span><span class="t" lang="tr">Kurulum</span></a>
@@ -316,6 +322,30 @@
     </div>
   </div>
 </div>
+
+<!-- ============================ VIDEO ============================ -->
+<section id="tour">
+  <div class="wrap">
+    <div class="center">
+      <h2><span class="t" lang="en">The tour in 100 seconds</span><span class="t" lang="tr">100 saniyede tur</span></h2>
+      <p class="sub"><span class="t" lang="en">Quick open, multiple cursors, split view, Markdown preview, a hex editor and more, drawn from the real editor. Sound on for the music.</span><span class="t" lang="tr">Hızlı dosya açma, çoklu imleç, bölünmüş görünüm, Markdown önizlemesi, hex editörü ve daha fazlası, gerçek editörden çizildi. Müzik için sesi aç.</span></p>
+    </div>
+    <div class="video">
+      <video class="t" lang="en" controls playsinline preload="none" poster="video/poster-en.jpg" width="1920" height="1080" aria-label="A 100-second tour of VeloEdit with English captions">
+        <source src="video/veloedit-tour-en.mp4" type="video/mp4">
+        <a href="video/veloedit-tour-en.mp4">Download the tour video (MP4, 10 MB)</a>
+      </video>
+      <video class="t" lang="tr" controls playsinline preload="none" poster="video/poster-tr.jpg" width="1920" height="1080" aria-label="VeloEdit'in Türkçe altyazılı 100 saniyelik turu">
+        <source src="video/veloedit-tour-tr.mp4" type="video/mp4">
+        <a href="video/veloedit-tour-tr.mp4">Tur videosunu indir (MP4, 10 MB)</a>
+      </video>
+    </div>
+    <p class="small credit">
+      <span class="t" lang="en">Music: “Rhythm Reactor” by Aetheric · Free To Use (<a href="https://freetouse.com">freetouse.com</a>)</span>
+      <span class="t" lang="tr">Müzik: Aetheric – “Rhythm Reactor” · Free To Use (<a href="https://freetouse.com">freetouse.com</a>)</span>
+    </p>
+  </div>
+</section>
 
 <!-- ============================ FEATURES ============================ -->
 <section id="features">
@@ -618,6 +648,8 @@ packaging/install.sh</code></pre>
     function setLang(lang) {
       root.dataset.lang = lang; root.lang = lang; document.title = titles[lang];
       document.querySelectorAll("[data-set-lang]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.setLang === lang)); });
+      // The video of the other language is hidden, not stopped: stop it.
+      document.querySelectorAll("video").forEach(function (v) { if (v.lang !== lang) v.pause(); });
       try { localStorage.setItem("lang", lang); } catch (e) {}
     }
     document.querySelectorAll("[data-set-lang]").forEach(function (b) { b.addEventListener("click", function () { setLang(b.dataset.setLang); }); });

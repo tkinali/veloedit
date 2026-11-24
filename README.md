@@ -8,7 +8,7 @@ A fast, light, GPU-accelerated text editor for Linux (and, as a preview, Windows
 Written in Rust with [iced](https://iced.rs). Opens in well under 100 ms, keeps your
 unsaved work across restarts, and never blocks the UI on disk, git or highlighting.
 
-**[Website](https://tkinali.github.io/veloedit/)** · **[Download](https://github.com/tkinali/veloedit/releases/latest)** · [Changelog](CHANGELOG.md)
+**[Website](https://tkinali.github.io/veloedit/)** · **[100-second tour](https://tkinali.github.io/veloedit/#tour)** · **[Download](https://github.com/tkinali/veloedit/releases/latest)** · [Changelog](CHANGELOG.md)
 
 ![VeloEdit](docs/screenshots/hero.png)
 
