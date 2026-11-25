@@ -9,13 +9,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-latest]
+        # macOS is a first look, not a supported platform yet: nobody has run VeloEdit on a Mac.
+        os: [ubuntu-24.04, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      # The headless UI tests render text: they need at least one font (Windows has its own).
+      # The headless UI tests render text: they need at least one font (Windows and macOS have their own).
       - if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-dejavu-core fonts-noto-core
       # The runners have no GPU: render the UI snapshots with the software renderer (tested locally the same way).
