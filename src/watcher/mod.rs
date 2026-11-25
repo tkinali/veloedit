@@ -101,9 +101,15 @@ mod tests {
         let rt = tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap();
         rt.block_on(async {
             let mut stream = Box::pin(events(vec![dir.clone()]));
-            // The watcher is set up lazily on the first poll: poll once (nothing
-            // is ready yet) so it is registered before we generate events.
-            assert!(tokio::time::timeout(Duration::from_millis(300), stream.next()).await.is_err());
+            // The watcher is set up lazily on the first poll: poll until it has been quiet
+            // for a moment, so it is registered before we generate events. (macOS FSEvents
+            // may still report the directory created just before the watch started; that
+            // must not count as one of the changes below.)
+            for _ in 0..10 {
+                if tokio::time::timeout(Duration::from_millis(300), stream.next()).await.is_err() {
+                    break;
+                }
+            }
 
             let file = dir.join("a.txt");
             fs::write(&file, "1").unwrap();
