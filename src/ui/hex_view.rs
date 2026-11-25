@@ -495,8 +495,8 @@ mod tests {
         assert!(t("g", Area::Hex).is_none(), "not a hex digit");
         assert!(matches!(t("g", Area::Ascii), Some(HexAction::Byte(b'g'))));
         assert!(t("\u{11f}", Area::Ascii).is_none(), "non-ASCII cannot be one byte");
-        assert!(translate_key(&k("s"), &k("s"), p, keyboard::Modifiers::CTRL, Some("s"), Area::Hex).is_none(), "Ctrl+S passes through");
-        assert!(matches!(translate_key(&k("z"), &k("z"), p, keyboard::Modifiers::CTRL, None, Area::Hex), Some(HexAction::Undo)));
+        assert!(translate_key(&k("s"), &k("s"), p, keyboard::Modifiers::COMMAND, Some("s"), Area::Hex).is_none(), "Ctrl+S passes through");
+        assert!(matches!(translate_key(&k("z"), &k("z"), p, keyboard::Modifiers::COMMAND, None, Area::Hex), Some(HexAction::Undo)));
         let tab = keyboard::Key::Named(keyboard::key::Named::Tab);
         assert!(matches!(translate_key(&tab, &tab, p, none, None, Area::Hex), Some(HexAction::ToggleArea)));
     }

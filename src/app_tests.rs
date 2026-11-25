@@ -902,7 +902,7 @@ fn command_palette_switches_theme_and_modal_blocks_the_editor() {
         modified_key: keyboard::Key::Character("w".into()),
         physical_key: keyboard::key::Physical::Code(keyboard::key::Code::KeyW),
         location: keyboard::Location::Standard,
-        modifiers: keyboard::Modifiers::CTRL,
+        modifiers: keyboard::Modifiers::COMMAND,
         text: None,
         repeat: false,
     })));
@@ -985,7 +985,7 @@ fn ctrl_key(c: &str) -> iced::Event {
         modified_key: keyboard::Key::Character(c.into()),
         physical_key: keyboard::key::Physical::Unidentified(keyboard::key::NativeCode::Unidentified),
         location: keyboard::Location::Standard,
-        modifiers: keyboard::Modifiers::CTRL,
+        modifiers: keyboard::Modifiers::COMMAND,
         text: None,
         repeat: false,
     })
@@ -1664,7 +1664,7 @@ fn ctrl_click_collapses_a_folder_tree_zoom_works_and_the_window_is_remembered() 
     }
     let click = |app: &mut App, p: &Path| drop(app.update(Message::TreeClicked { path: p.to_path_buf(), is_dir: true }));
     let ctrl = |app: &mut App, on: bool| {
-        let m = if on { keyboard::Modifiers::CTRL } else { keyboard::Modifiers::empty() };
+        let m = if on { keyboard::Modifiers::COMMAND } else { keyboard::Modifiers::empty() };
         drop(app.update(Message::Key(keyboard::Event::ModifiersChanged(m))));
     };
     // Open a/, a/b/ and a/b/c/ the normal way.
@@ -1696,19 +1696,19 @@ fn ctrl_click_collapses_a_folder_tree_zoom_works_and_the_window_is_remembered() 
     let ch = |c: &str| keyboard::Key::Character(c.into());
     // US layout: Ctrl+= and Ctrl+Shift+= ("+"), Ctrl+-.
     for (key, modified, mods, want) in [
-        ("=", "=", keyboard::Modifiers::CTRL, 1),
-        ("=", "+", keyboard::Modifiers::CTRL | keyboard::Modifiers::SHIFT, 1),
-        ("-", "-", keyboard::Modifiers::CTRL, -1),
+        ("=", "=", keyboard::Modifiers::COMMAND, 1),
+        ("=", "+", keyboard::Modifiers::COMMAND | keyboard::Modifiers::SHIFT, 1),
+        ("-", "-", keyboard::Modifiers::COMMAND, -1),
         // Turkish Q layout: "+" is Shift+4 and Ctrl reports the unshifted "4" as the key.
-        ("4", "+", keyboard::Modifiers::CTRL | keyboard::Modifiers::SHIFT, 1),
-        ("0", "=", keyboard::Modifiers::CTRL | keyboard::Modifiers::SHIFT, 1),
+        ("4", "+", keyboard::Modifiers::COMMAND | keyboard::Modifiers::SHIFT, 1),
+        ("0", "=", keyboard::Modifiers::COMMAND | keyboard::Modifiers::SHIFT, 1),
     ] {
         let m = shortcut(&ch(key), &ch(modified), unknown, mods);
         assert!(matches!(m, Some(Message::ChangeFontSize(d)) if d == want), "{key}/{modified}");
     }
-    let zero = shortcut(&ch("0"), &ch("0"), unknown, keyboard::Modifiers::CTRL);
+    let zero = shortcut(&ch("0"), &ch("0"), unknown, keyboard::Modifiers::COMMAND);
     assert!(matches!(zero, Some(Message::ResetFontSize)));
-    assert!(shortcut(&ch("0"), &ch("="), unknown, keyboard::Modifiers::CTRL | keyboard::Modifiers::SHIFT).is_some_and(|m| matches!(m, Message::ChangeFontSize(1))), "Ctrl+Shift+0 is '=' there, not reset");
+    assert!(shortcut(&ch("0"), &ch("="), unknown, keyboard::Modifiers::COMMAND | keyboard::Modifiers::SHIFT).is_some_and(|m| matches!(m, Message::ChangeFontSize(1))), "Ctrl+Shift+0 is '=' there, not reset");
     assert!(shortcut(&ch("="), &ch("="), unknown, keyboard::Modifiers::empty()).is_none(), "no Ctrl, no zoom: typing '=' must work");
     // Numpad keys: found by the physical key, whatever NumLock makes them type
     // ("0" with it on, Insert with it off, "+"/"-" or nothing recognisable).
@@ -1717,11 +1717,11 @@ fn ctrl_click_collapses_a_folder_tree_zoom_works_and_the_window_is_remembered() 
         let pad = |c| Physical::Code(c);
         let insert = keyboard::Key::Named(Named::Insert);
         for key in [ch("0"), insert.clone(), keyboard::Key::Unidentified] {
-            let m = shortcut(&key, &key, pad(Code::Numpad0), keyboard::Modifiers::CTRL);
+            let m = shortcut(&key, &key, pad(Code::Numpad0), keyboard::Modifiers::COMMAND);
             assert!(matches!(m, Some(Message::ResetFontSize)), "Ctrl+Numpad0 as {key:?}");
         }
-        assert!(matches!(shortcut(&ch("+"), &ch("+"), pad(Code::NumpadAdd), keyboard::Modifiers::CTRL), Some(Message::ChangeFontSize(1))));
-        assert!(matches!(shortcut(&ch("-"), &ch("-"), pad(Code::NumpadSubtract), keyboard::Modifiers::CTRL), Some(Message::ChangeFontSize(-1))));
+        assert!(matches!(shortcut(&ch("+"), &ch("+"), pad(Code::NumpadAdd), keyboard::Modifiers::COMMAND), Some(Message::ChangeFontSize(1))));
+        assert!(matches!(shortcut(&ch("-"), &ch("-"), pad(Code::NumpadSubtract), keyboard::Modifiers::COMMAND), Some(Message::ChangeFontSize(-1))));
         assert!(shortcut(&ch("0"), &ch("0"), pad(Code::Numpad0), keyboard::Modifiers::empty()).is_none(), "plain Numpad0 types a 0");
         assert!(shortcut(&insert, &insert, pad(Code::Numpad0), keyboard::Modifiers::empty()).is_none());
     }
@@ -1747,7 +1747,7 @@ fn ctrl_click_collapses_a_folder_tree_zoom_works_and_the_window_is_remembered() 
         let mut ui = iced_test::simulator(app.view());
         ui.point_at(iced::Point::new(sidebar::DEFAULT_WIDTH + 200.0, TOP + 100.0));
         ui.simulate([
-            Event::Keyboard(keyboard::Event::ModifiersChanged(keyboard::Modifiers::CTRL)),
+            Event::Keyboard(keyboard::Event::ModifiersChanged(keyboard::Modifiers::COMMAND)),
             Event::Mouse(mouse::Event::WheelScrolled { delta: mouse::ScrollDelta::Lines { x: 0.0, y: 1.0 } }),
         ]);
         ui.into_messages().collect()
@@ -2005,7 +2005,7 @@ fn ctrl_click_and_ctrl_d_give_multiple_cursors_that_edit_together() {
     let acts = editor_actions(&app, |ui| {
         ui.point_at(at(3.0, 0.0));
         ui.simulate(iced_test::simulator::click());
-        ui.simulate([iced::Event::Keyboard(keyboard::Event::ModifiersChanged(keyboard::Modifiers::CTRL))]);
+        ui.simulate([iced::Event::Keyboard(keyboard::Event::ModifiersChanged(keyboard::Modifiers::COMMAND))]);
         ui.point_at(at(3.0, 1.0));
         ui.simulate(iced_test::simulator::click());
     });

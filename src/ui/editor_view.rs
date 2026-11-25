@@ -1133,14 +1133,14 @@ mod tests {
     fn keys_map_to_editor_actions_and_app_shortcuts_pass_through() {
         use keyboard::{Modifiers as M, key::Named};
         let named = |n| keyboard::Key::Named(n);
-        assert!(matches!(key(k("z"), M::CTRL, None), Some(Action::Undo)));
-        assert!(matches!(key(k("z"), M::CTRL | M::SHIFT, None), Some(Action::Redo)));
-        assert!(matches!(key(k("Z"), M::CTRL | M::SHIFT, None), Some(Action::Redo)), "upper-case letter with Shift");
-        assert!(matches!(key(k("y"), M::CTRL, None), Some(Action::Redo)));
-        assert!(matches!(key(k("a"), M::CTRL, None), Some(Action::SelectAll)));
+        assert!(matches!(key(k("z"), M::COMMAND, None), Some(Action::Undo)));
+        assert!(matches!(key(k("z"), M::COMMAND | M::SHIFT, None), Some(Action::Redo)));
+        assert!(matches!(key(k("Z"), M::COMMAND | M::SHIFT, None), Some(Action::Redo)), "upper-case letter with Shift");
+        assert!(matches!(key(k("y"), M::COMMAND, None), Some(Action::Redo)));
+        assert!(matches!(key(k("a"), M::COMMAND, None), Some(Action::SelectAll)));
         // Ctrl+S / Ctrl+P / Ctrl+B belong to the app: the editor must not eat them.
         for c in ["s", "p", "b", "w", "n"] {
-            assert!(key(k(c), M::CTRL, Some(c)).is_none(), "ctrl+{c} must pass through");
+            assert!(key(k(c), M::COMMAND, Some(c)).is_none(), "ctrl+{c} must pass through");
         }
         assert!(matches!(key(k("a"), M::empty(), Some("a")), Some(Action::Insert(t)) if t == "a"));
         assert!(matches!(key(k("ğ"), M::empty(), Some("ğ")), Some(Action::Insert(t)) if t == "ğ"));
@@ -1153,10 +1153,10 @@ mod tests {
         assert!(matches!(key(named(Named::Enter), M::empty(), Some("\r")), Some(Action::Enter)));
         assert!(matches!(key(named(Named::Tab), M::empty(), None), Some(Action::Indent)));
         assert!(matches!(key(named(Named::Tab), M::SHIFT, None), Some(Action::Unindent)));
-        assert!(key(named(Named::Tab), M::CTRL, None).is_none(), "Ctrl+Tab switches tabs (app)");
-        assert!(matches!(key(named(Named::Backspace), M::CTRL, None), Some(Action::DeleteWordBack)));
+        assert!(key(named(Named::Tab), M::COMMAND, None).is_none(), "Ctrl+Tab switches tabs (app)");
+        assert!(matches!(key(named(Named::Backspace), M::COMMAND, None), Some(Action::DeleteWordBack)));
         assert!(matches!(
-            key(named(Named::ArrowLeft), M::CTRL, None),
+            key(named(Named::ArrowLeft), M::COMMAND, None),
             Some(Action::Move { motion: Motion::WordLeft, extend: false })
         ));
         assert!(matches!(
@@ -1164,7 +1164,7 @@ mod tests {
             Some(Action::Move { motion: Motion::Right, extend: true })
         ));
         assert!(matches!(
-            key(named(Named::Home), M::CTRL | M::SHIFT, None),
+            key(named(Named::Home), M::COMMAND | M::SHIFT, None),
             Some(Action::Move { motion: Motion::DocStart, extend: true })
         ));
         assert!(matches!(key(named(Named::Space), M::empty(), Some(" ")), Some(Action::Insert(t)) if t == " "));
