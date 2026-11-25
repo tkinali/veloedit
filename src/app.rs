@@ -3140,14 +3140,17 @@ fn modal_key(event: Event, _status: event::Status, _window: window::Id) -> Optio
 }
 
 /// The program that opens a path or URL the way the desktop does.
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 const DESKTOP_OPEN: &str = "xdg-open";
+/// (`open` shows a folder in Finder, a file in its default program, a URL in the browser.)
+#[cfg(target_os = "macos")]
+const DESKTOP_OPEN: &str = "open";
 /// (Explorer opens a folder in a window, a file in its default program, a URL in the browser;
 /// it exits with 1 even then, which nobody looks at.)
 #[cfg(windows)]
 const DESKTOP_OPEN: &str = "explorer.exe";
 
-/// Hands a path or URL to the desktop (`xdg-open`, Explorer) without blocking the UI.
+/// Hands a path or URL to the desktop (`xdg-open`, `open`, Explorer) without blocking the UI.
 fn open_with_desktop(target: std::ffi::OsString) {
     std::thread::spawn(move || {
         let child = std::process::Command::new(DESKTOP_OPEN)

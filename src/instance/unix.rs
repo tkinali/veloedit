@@ -31,14 +31,22 @@ pub fn socket_path() -> PathBuf {
     } else if let Some(dir) = std::env::var_os("XDG_RUNTIME_DIR") {
         PathBuf::from(dir).join("veloedit.sock")
     } else {
-        // No runtime dir (rare): a per-user name in /tmp.
-        let uid = std::fs::metadata("/proc/self").map(|m| std::os::unix::fs::MetadataExt::uid(&m)).unwrap_or(0);
-        std::env::temp_dir().join(format!("veloedit-{uid}.sock"))
+        // No runtime dir (rare on Linux, always on macOS): a per-user name in the temp dir.
+        std::env::temp_dir().join(format!("veloedit-{}.sock", user_id()))
     };
     short_enough(wanted)
 }
 
-/// A Unix socket path must fit `sun_path` (108 bytes on Linux). Longer ones (deep
+/// The id of the user running this process, read from what the user owns: `/proc/self` on
+/// Linux, else (macOS has no `/proc`) the home folder. 0 when neither can be read.
+fn user_id() -> u32 {
+    let owner = |p: &Path| std::fs::metadata(p).map(|m| m.uid());
+    owner(Path::new("/proc/self"))
+        .or_else(|_| dirs::home_dir().ok_or(()).and_then(|home| owner(&home).map_err(|_| ())))
+        .unwrap_or(0)
+}
+
+/// A Unix socket path must fit `sun_path` (108 bytes on Linux, 104 on macOS). Longer ones (deep
 /// state directories) get a short stand-in in the temp dir, still unique per path.
 fn short_enough(path: PathBuf) -> PathBuf {
     use std::hash::{Hash, Hasher};
@@ -204,6 +212,14 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
+    }
+
+    #[test]
+    fn the_user_id_is_the_owner_of_what_this_process_creates() {
+        // On Linux it comes from /proc/self, on macOS from the home folder: both are the user's.
+        let d = dir("uid");
+        assert_eq!(user_id(), std::fs::metadata(&d).unwrap().uid());
+        std::fs::remove_dir_all(d).ok();
     }
 
     #[test]

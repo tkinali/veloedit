@@ -10,9 +10,15 @@ use iced::{
 use crate::syntax::Group;
 
 /// The fixed-width font of the editor, hex view and result lists. The system's generic
-/// "monospace" everywhere but on Windows, where that maps to Courier New: Consolas ships
-/// with every Windows.
-pub const MONO: iced::Font = if cfg!(windows) { iced::Font::with_name("Consolas") } else { iced::Font::MONOSPACE };
+/// "monospace" everywhere but on Windows and macOS, where that maps to Courier New and Courier:
+/// Consolas ships with every Windows, Menlo with every Mac.
+pub const MONO: iced::Font = if cfg!(windows) {
+    iced::Font::with_name("Consolas")
+} else if cfg!(target_os = "macos") {
+    iced::Font::with_name("Menlo")
+} else {
+    iced::Font::MONOSPACE
+};
 
 pub const FONT_SIZE: f32 = 13.0;
 
