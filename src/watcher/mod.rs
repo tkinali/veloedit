@@ -62,12 +62,14 @@ pub fn events(dirs: Vec<PathBuf>) -> impl Stream<Item = Vec<PathBuf>> {
             let _ = watcher.watch(dir, RecursiveMode::NonRecursive);
         }
 
+        let aliases = Aliases::new(&dirs);
+
         // `watcher` must stay alive for as long as this loop runs.
         while let Some(first) = rx.next().await {
             let mut changed = BTreeSet::new();
-            collect(first, &mut changed);
+            collect(first, &aliases, &mut changed);
             while let Ok(Some(more)) = tokio::time::timeout(DEBOUNCE, rx.next()).await {
-                collect(more, &mut changed);
+                collect(more, &aliases, &mut changed);
             }
             if !changed.is_empty() && out.send(changed.into_iter().collect()).await.is_err() {
                 return;
@@ -78,19 +80,71 @@ pub fn events(dirs: Vec<PathBuf>) -> impl Stream<Item = Vec<PathBuf>> {
     })
 }
 
-fn collect(event: notify::Result<notify::Event>, into: &mut BTreeSet<PathBuf>) {
+fn collect(event: notify::Result<notify::Event>, aliases: &Aliases, into: &mut BTreeSet<PathBuf>) {
     let Ok(event) = event else { return };
     // Reads (our own loader included) must never feed back into reloads.
     if matches!(event.kind, EventKind::Access(_)) {
         return;
     }
-    into.extend(event.paths);
+    into.extend(event.paths.into_iter().map(|p| aliases.restore(p)));
+}
+
+/// Watched directories that sit behind a symlink, with the real path the OS reports them under.
+///
+/// macOS (FSEvents) names every event by its real path: a folder opened as `/tmp/site` is
+/// reported as `/private/tmp/site/...`, and `/var` is `/private/var`. The rest of the app knows
+/// the folder by the name it opened it with, so the events are renamed back.
+struct Aliases(Vec<(PathBuf, PathBuf)>);
+
+impl Aliases {
+    fn new(dirs: &[PathBuf]) -> Self {
+        let pairs = dirs
+            .iter()
+            .filter_map(|dir| {
+                let real = std::fs::canonicalize(dir).ok()?;
+                (real != *dir).then(|| (real, dir.clone()))
+            })
+            .collect();
+        Self(pairs)
+    }
+
+    /// `path` in the name of the watched directory it lies in (unchanged when it is not behind an alias).
+    fn restore(&self, path: PathBuf) -> PathBuf {
+        for (real, name) in &self.0 {
+            if let Ok(rest) = path.strip_prefix(real) {
+                return if rest.as_os_str().is_empty() { name.clone() } else { name.join(rest) };
+            }
+        }
+        path
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
+
+    #[cfg(unix)]
+    #[test]
+    fn events_named_by_the_real_path_are_renamed_back_to_the_watched_one() {
+        let base = std::env::temp_dir().join(format!("veloedit-alias-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(base.join("real/sub")).unwrap();
+        std::os::unix::fs::symlink(base.join("real"), base.join("link")).unwrap();
+        let link = base.join("link");
+        let real = fs::canonicalize(&link).unwrap();
+
+        let aliases = Aliases::new(&[link.clone()]);
+        assert_eq!(aliases.restore(real.join("a.txt")), link.join("a.txt"));
+        assert_eq!(aliases.restore(real.join("sub/b.txt")), link.join("sub/b.txt"));
+        assert_eq!(aliases.restore(real.clone()), link, "the folder itself, without a trailing slash");
+        let elsewhere = base.join("other/c.txt");
+        assert_eq!(aliases.restore(elsewhere.clone()), elsewhere, "paths outside stay as they are");
+
+        // A directory that is its own real path needs no renaming.
+        assert!(Aliases::new(&[real]).0.is_empty());
+        fs::remove_dir_all(base).ok();
+    }
 
     #[test]
     fn reports_create_modify_delete_in_a_watched_dir_once_debounced() {
